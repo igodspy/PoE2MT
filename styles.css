@@ -249,7 +249,7 @@ button:hover {
   gap: 1px;
   background: var(--line);
   border-top: 1px solid var(--line);
-  max-height: 338px;
+  max-height: 339px;
   overflow: hidden;
 }
 
@@ -274,8 +274,8 @@ button:hover {
 .stat-row:hover,
 .stat-row:focus-visible {
   background: var(--panel-2);
-  outline: 1px solid var(--accent);
-  outline-offset: -1px;
+  outline: 0;
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 
 .stat-row strong,
