@@ -99,14 +99,17 @@
       state.locationFilter = null;
       state.search = normalizeSearch(event.target.value);
       resetVisibleRows();
+      renderLocationStats();
       renderTable();
     });
     els.tableWrap.addEventListener("scroll", handleTableScroll);
     els.filters.forEach((button) => {
       button.addEventListener("click", () => {
+        state.locationFilter = null;
         state.activeFilter = button.dataset.filter;
         syncFilterButtons();
         resetVisibleRows();
+        renderLocationStats();
         renderTable();
       });
     });
@@ -570,8 +573,9 @@
 
     els.locationStats.innerHTML = rows.map((item) => {
       const averageMs = item.timedCount ? item.totalMs / item.timedCount : 0;
+      const selected = isSelectedLocation(item) ? " selected" : "";
       return `
-        <article class="stat-row" role="button" tabindex="0" data-location-name="${escapeHtml(item.name)}" data-location-type="${escapeHtml(item.type)}">
+        <article class="stat-row${selected}" role="button" tabindex="0" data-location-name="${escapeHtml(item.name)}" data-location-type="${escapeHtml(item.type)}">
           <div>
             <strong>${escapeHtml(item.name)}</strong>
             <span class="type type-${item.type}">${typeLabel(item.type)}</span>
@@ -631,13 +635,34 @@
 
   function applyLocationFilter(name, type) {
     if (!name || !type) return;
-    state.locationFilter = { key: normalize(name), type };
+    const key = normalize(name);
+    if (state.locationFilter?.key === key && state.locationFilter.type === type) {
+      clearLocationFilter();
+      return;
+    }
+    state.locationFilter = { key, type };
     state.search = normalizeSearch(name);
     state.activeFilter = type;
     els.searchBox.value = name;
     syncFilterButtons();
     resetVisibleRows();
+    renderLocationStats();
     renderTable();
+  }
+
+  function clearLocationFilter() {
+    state.locationFilter = null;
+    state.search = "";
+    state.activeFilter = "all";
+    els.searchBox.value = "";
+    syncFilterButtons();
+    resetVisibleRows();
+    renderLocationStats();
+    renderTable();
+  }
+
+  function isSelectedLocation(item) {
+    return Boolean(state.locationFilter && state.locationFilter.key === normalize(item.name) && state.locationFilter.type === item.type);
   }
 
   function syncFilterButtons() {
