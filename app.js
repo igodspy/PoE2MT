@@ -14,6 +14,7 @@
     clearData: document.getElementById("clearData"),
     startDate: document.getElementById("startDate"),
     watchStatus: document.getElementById("watchStatus"),
+    logHint: document.getElementById("logHint"),
     fileName: document.getElementById("fileName"),
     scanMeta: document.getElementById("scanMeta"),
     progressBar: document.getElementById("progressBar"),
@@ -453,6 +454,7 @@
 
   function render() {
     els.fileName.textContent = state.fileName || "No log loaded";
+    els.logHint.hidden = Boolean(state.fileName || state.file || state.fileHandle);
     els.startDate.value = state.startDate;
     renderRealtimeToggle();
     renderStatsState();
