@@ -427,7 +427,7 @@
   }
 
   function isExcludedLocation(record) {
-    return locationKey(record) === "well of souls" && Number(record.level) === 22;
+    return ( locationKey(record) === "well of souls" && Number(record.level) === 22) || locationKey(record) === "vaal ruins" ;
   }
 
   function instanceKey(code, seed) {
