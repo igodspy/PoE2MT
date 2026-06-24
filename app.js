@@ -2,10 +2,11 @@
   const TAIL_LINES = 3000;
   const TAIL_BYTES = 1600 * 1024;
   const POLL_MS = 3000;
+  const HISTORY_PAGE_SIZE = 250;
   const DB_NAME = "poe2-map-tracker";
   const STORE_NAME = "settings";
   const REQUIRED_LOG_FILE = "Client.txt";
-  const STATE_VERSION = 8;
+  const STATE_VERSION = 10;
 
   const els = {
     nativePicker: document.getElementById("nativePicker"),
@@ -29,6 +30,7 @@
     statsHeader: document.getElementById("statsHeader"),
     statsHint: document.getElementById("statsHint"),
     locationStats: document.getElementById("locationStats"),
+    tableWrap: document.getElementById("tableWrap"),
     historyBody: document.getElementById("historyBody"),
     searchBox: document.getElementById("searchBox"),
     filters: Array.from(document.querySelectorAll(".filter"))
@@ -55,6 +57,7 @@
     records: [],
     activeFilter: "all",
     search: "",
+    visibleRows: HISTORY_PAGE_SIZE,
     startDate: "",
     realtime: true,
     statsExpanded: false,
@@ -82,12 +85,15 @@
     els.statsHeader.addEventListener("click", toggleStats);
     els.searchBox.addEventListener("input", (event) => {
       state.search = normalizeSearch(event.target.value);
+      resetVisibleRows();
       renderTable();
     });
+    els.tableWrap.addEventListener("scroll", handleTableScroll);
     els.filters.forEach((button) => {
       button.addEventListener("click", () => {
         state.activeFilter = button.dataset.filter;
         els.filters.forEach((item) => item.classList.toggle("active", item === button));
+        resetVisibleRows();
         renderTable();
       });
     });
@@ -180,6 +186,7 @@
     recalculateDurations();
     recalculateRunCounts();
     state.lastSize = file.size;
+    resetVisibleRows();
     setProgress(100, `${lines.length} lines`);
     saveLocalState();
     render();
@@ -215,6 +222,7 @@
     recalculateRunCounts();
     recalculateDurations();
     state.lastSize = file.size;
+    resetVisibleRows();
     setProgress(100, `${linesCount.toLocaleString("en-US")} lines`);
     saveLocalState();
     render();
@@ -324,9 +332,7 @@
     }
     closePreviousRun(record);
     if (HIDDEN_TYPES.has(record.type)) return;
-    record.runCount = countLocationRuns(locationKey(record)) + 1;
     state.records.push(record);
-    if (state.records.length > 5000) state.records = state.records.slice(-5000);
   }
 
   function recordDeath(time) {
@@ -385,15 +391,15 @@
   function recalculateRunCounts() {
     const counts = new Map();
     for (const record of state.records) {
+      if (HIDDEN_TYPES.has(record.type)) {
+        delete record.runCount;
+        continue;
+      }
       const key = locationKey(record);
       const nextCount = (counts.get(key) || 0) + 1;
       record.runCount = nextCount;
       counts.set(key, nextCount);
     }
-  }
-
-  function countLocationRuns(key) {
-    return state.records.reduce((count, record) => count + (locationKey(record) === key ? 1 : 0), 0);
   }
 
   function locationKey(record) {
@@ -480,6 +486,7 @@
     state.lastSize = 0;
     state.pending = null;
     state.records = [];
+    resetVisibleRows();
     state.startDate = "";
     els.startDate.value = "";
     localStorage.removeItem("poe2-map-tracker-state");
@@ -565,13 +572,13 @@
 
   function renderTable() {
     const query = state.search;
-    const rows = state.records
+    const allRows = state.records
       .filter((record) => !HIDDEN_TYPES.has(record.type))
       .filter((record) => state.activeFilter === "all" || record.type === state.activeFilter)
       .filter((record) => !query || normalizeSearch(`${record.name} ${record.code} ${record.boss}`).includes(query))
       .slice()
-      .reverse()
-      .slice(0, 250);
+      .reverse();
+    const rows = allRows.slice(0, state.visibleRows);
 
     if (!rows.length) {
       els.historyBody.innerHTML = `<tr><td colspan="7" class="empty">No matching areas yet.</td></tr>`;
@@ -591,7 +598,26 @@
         <td>${deathCell(record)}</td>
         <td>${escapeHtml(String(record.level || ""))}</td>
       </tr>
-    `).join("");
+    `).join("") + loadMoreRow(rows.length, allRows.length);
+  }
+
+  function handleTableScroll() {
+    if (!els.historyBody.querySelector(".load-more")) return;
+    const nearBottom = els.tableWrap.scrollTop + els.tableWrap.clientHeight >= els.tableWrap.scrollHeight - 120;
+    if (!nearBottom) return;
+    const previousVisibleRows = state.visibleRows;
+    state.visibleRows += HISTORY_PAGE_SIZE;
+    if (state.visibleRows !== previousVisibleRows) renderTable();
+  }
+
+  function resetVisibleRows() {
+    state.visibleRows = HISTORY_PAGE_SIZE;
+    if (els.tableWrap) els.tableWrap.scrollTop = 0;
+  }
+
+  function loadMoreRow(visibleCount, totalCount) {
+    if (visibleCount >= totalCount) return "";
+    return `<tr><td colspan="7" class="load-more">Showing ${visibleCount} of ${totalCount}. Scroll for more.</td></tr>`;
   }
 
   function setProgress(percent, label) {

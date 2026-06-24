@@ -451,6 +451,12 @@ td small {
   vertical-align: middle;
 }
 
+.load-more {
+  text-align: center;
+  color: var(--muted);
+  background: #12150f;
+}
+
 @media (max-width: 860px) {
   .app-shell {
     padding: 14px;
