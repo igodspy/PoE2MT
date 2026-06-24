@@ -99,6 +99,7 @@ button {
 .file-panel {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 10px;
 }
 
@@ -125,6 +126,32 @@ button:hover {
 .active-toggle {
   border-color: var(--ok);
   background: #1f2d1d;
+}
+
+.date-field {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+  color: var(--muted);
+}
+
+.date-field span {
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.date-field input {
+  width: 136px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  color-scheme: dark;
 }
 
 .progress-wrap {

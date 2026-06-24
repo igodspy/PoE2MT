@@ -11,6 +11,7 @@
     fullScan: document.getElementById("fullScan"),
     realtimeToggle: document.getElementById("realtimeToggle"),
     clearData: document.getElementById("clearData"),
+    startDate: document.getElementById("startDate"),
     watchStatus: document.getElementById("watchStatus"),
     fileName: document.getElementById("fileName"),
     scanMeta: document.getElementById("scanMeta"),
@@ -33,9 +34,11 @@
     type,
     biome,
     boss,
-    key: normalize(name)
+    key: normalize(name),
+    codeKey: normalizeCodeName(name)
   }));
   const wikiByName = new Map(wikiRows.map((row) => [row.key, row]));
+  const wikiByCodeName = new Map(wikiRows.map((row) => [row.codeKey, row]));
   const HIDDEN_TYPES = new Set(["hideout", "town"]);
 
   let state = {
@@ -47,6 +50,7 @@
     records: [],
     activeFilter: "all",
     search: "",
+    startDate: "",
     realtime: true,
     statsExpanded: false,
     pollTimer: null
@@ -65,9 +69,14 @@
     els.fullScan.addEventListener("click", () => fullScan());
     els.realtimeToggle.addEventListener("click", toggleRealtime);
     els.clearData.addEventListener("click", clearData);
+    els.startDate.addEventListener("change", () => {
+      state.startDate = els.startDate.value;
+      saveLocalState();
+      if (state.file || state.fileHandle) fullScan();
+    });
     els.statsHeader.addEventListener("click", toggleStats);
     els.searchBox.addEventListener("input", (event) => {
-      state.search = event.target.value.trim().toLowerCase();
+      state.search = normalizeSearch(event.target.value);
       renderTable();
     });
     els.filters.forEach((button) => {
@@ -105,6 +114,8 @@
       state.records = (saved.records || []).map(refreshClassification).filter((record) => !HIDDEN_TYPES.has(record.type));
       state.realtime = saved.realtime !== false;
       state.statsExpanded = Boolean(saved.statsExpanded);
+      state.startDate = saved.startDate || "";
+      state.records = state.records.filter((record) => isOnOrAfterStartDate(record.time));
       recalculateRunCounts();
       recalculateDurations();
       state.lastSize = savedLastSize;
@@ -238,6 +249,10 @@
       if (!line) continue;
       const generated = line.match(/^(\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}).*Generating level (\d+) area "([^"]+)" with seed (\d+)/);
       if (generated) {
+        if (!isOnOrAfterStartDate(parseTime(generated[1]))) {
+          state.pending = null;
+          continue;
+        }
         finalizePending();
         state.pending = {
           id: `${generated[3]}:${generated[4]}:${generated[1]}`,
@@ -252,6 +267,7 @@
 
       const scene = line.match(/^(\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}).*\[SCENE\] Set Source \[(.+)]/);
       if (scene) {
+        if (!isOnOrAfterStartDate(parseTime(scene[1]))) continue;
         const name = scene[2].trim();
         if (!name || name === "(null)" || name === "(unknown)") continue;
         if (state.pending) {
@@ -264,6 +280,7 @@
 
       const loading = line.match(/^(\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}).*\[LOADING SCREEN\] \((.+)\) Duration = ([\d.]+)/);
       if (loading && state.pending) {
+        if (!isOnOrAfterStartDate(parseTime(loading[1]))) continue;
         state.pending.name = loading[2].trim();
         state.pending.loadingDuration = Number(loading[3]);
         finalizePending();
@@ -286,7 +303,7 @@
     if (last && last.code === record.code && last.seed === record.seed && last.name === record.name) return;
     closePreviousRun(record);
     if (HIDDEN_TYPES.has(record.type)) return;
-    record.runCount = countLocationRuns(record.name) + 1;
+    record.runCount = countLocationRuns(locationKey(record)) + 1;
     state.records.push(record);
     if (state.records.length > 5000) state.records = state.records.slice(-5000);
   }
@@ -315,16 +332,19 @@
   function recalculateRunCounts() {
     const counts = new Map();
     for (const record of state.records) {
-      const key = normalize(record.name);
+      const key = locationKey(record);
       const nextCount = (counts.get(key) || 0) + 1;
       record.runCount = nextCount;
       counts.set(key, nextCount);
     }
   }
 
-  function countLocationRuns(name) {
-    const key = normalize(name);
-    return state.records.reduce((count, record) => count + (normalize(record.name) === key ? 1 : 0), 0);
+  function countLocationRuns(key) {
+    return state.records.reduce((count, record) => count + (locationKey(record) === key ? 1 : 0), 0);
+  }
+
+  function locationKey(record) {
+    return normalize(record.inferredName || record.name || record.code);
   }
 
   function isTimedRun(record) {
@@ -335,11 +355,14 @@
     const found = wikiByName.get(normalize(name));
     if (found) return { type: found.type, biome: found.biome, boss: found.boss, known: true };
 
-    const hint = window.POE2_LOCATION_DATA.internalHints.find(([needle]) => (code || "").includes(needle) || (name || "").includes(needle));
-    if (hint) return { type: hint[1], biome: "", boss: "", known: false };
+    const codeMatch = matchByCode(code);
+    if (codeMatch) return { type: codeMatch.type, biome: codeMatch.biome, boss: codeMatch.boss, known: true, inferredName: codeMatch.name };
+
+    const hint = matchHint(name, code);
+    if (hint) return { type: hint[1], biome: "", boss: "", known: false, inferredName: inferNameFromCode(code) };
     if (name === "Atlas") return { type: "town", biome: "", boss: "", known: true };
     if (/town|encampment|caravan|ziggurat/i.test(name)) return { type: "town", biome: "", boss: "", known: false };
-    return { type: "map", biome: "", boss: "", known: false };
+    return { type: "map", biome: "", boss: "", known: false, inferredName: inferNameFromCode(code) };
   }
 
   function refreshClassification(record) {
@@ -400,6 +423,8 @@
     state.lastSize = 0;
     state.pending = null;
     state.records = [];
+    state.startDate = "";
+    els.startDate.value = "";
     localStorage.removeItem("poe2-map-tracker-state");
     await deleteHandle();
     setProgress(0, "0 lines");
@@ -409,6 +434,7 @@
 
   function render() {
     els.fileName.textContent = state.fileName || "No log loaded";
+    els.startDate.value = state.startDate;
     renderRealtimeToggle();
     renderStatsState();
     renderSummary();
@@ -430,9 +456,10 @@
     const stats = new Map();
     for (const record of state.records) {
       if (HIDDEN_TYPES.has(record.type)) continue;
-      const key = `${record.name}:${record.type}`;
+      const keyName = record.inferredName || record.name;
+      const key = `${normalize(keyName)}:${record.type}`;
       const current = stats.get(key) || {
-        name: record.name,
+        name: keyName,
         type: record.type,
         count: 0,
         totalMs: 0,
@@ -476,7 +503,7 @@
     const rows = state.records
       .filter((record) => !HIDDEN_TYPES.has(record.type))
       .filter((record) => state.activeFilter === "all" || record.type === state.activeFilter)
-      .filter((record) => !query || `${record.name} ${record.code} ${record.boss}`.toLowerCase().includes(query))
+      .filter((record) => !query || normalizeSearch(`${record.name} ${record.inferredName || ""} ${record.code} ${record.boss}`).includes(query))
       .slice()
       .reverse()
       .slice(0, 250);
@@ -491,6 +518,7 @@
         <td>${escapeHtml(formatTime(record.time))}</td>
         <td>
           <strong>${escapeHtml(record.name)}</strong>
+          ${record.inferredName && normalize(record.inferredName) !== normalize(record.name) ? `<small>inferred: ${escapeHtml(record.inferredName)}</small>` : ""}
           ${record.boss ? `<small>${escapeHtml(record.boss)}</small>` : ""}
         </td>
         <td><span class="type type-${record.type}">${typeLabel(record.type)}</span></td>
@@ -534,6 +562,45 @@
     return String(value || "").toLowerCase().replace(/^the /, "").replace(/\s+/g, " ").trim();
   }
 
+  function normalizeSearch(value) {
+    return String(value || "").toLocaleLowerCase().replace(/\s+/g, " ").trim();
+  }
+
+  function normalizeCodeName(value) {
+    return String(value || "")
+      .replace(/^Map/i, "")
+      .replace(/^The\s+/i, "")
+      .replace(/[^a-z0-9]+/gi, "")
+      .toLowerCase();
+  }
+
+  function matchByCode(code) {
+    if (!code) return null;
+    const candidates = codeCandidates(code);
+    for (const candidate of candidates) {
+      const found = wikiByCodeName.get(candidate);
+      if (found) return found;
+    }
+    return wikiRows.find((row) => candidates.some((candidate) => candidate.includes(row.codeKey) || row.codeKey.includes(candidate))) || null;
+  }
+
+  function codeCandidates(code) {
+    const raw = String(code || "");
+    const parts = raw.split(/[_/\\-]+/).filter(Boolean);
+    const candidates = new Set([normalizeCodeName(raw)]);
+    for (const part of parts) {
+      candidates.add(normalizeCodeName(part));
+    }
+    candidates.add(normalizeCodeName(raw.replace(/Act\d+/gi, "")));
+    candidates.add(normalizeCodeName(raw.replace(/Map/gi, "")));
+    return Array.from(candidates).filter(Boolean);
+  }
+
+  function matchHint(name, code) {
+    const raw = `${code || ""} ${name || ""}`.toLowerCase();
+    return window.POE2_LOCATION_DATA.internalHints.find(([needle]) => raw.includes(String(needle).toLowerCase()));
+  }
+
   function humanizeCode(code) {
     return String(code || "")
       .replace(/^Map/, "")
@@ -542,8 +609,20 @@
       .trim() || "Unknown";
   }
 
+  function inferNameFromCode(code) {
+    if (!code) return "";
+    const matched = matchByCode(code);
+    if (matched) return matched.name;
+    return humanizeCode(code);
+  }
+
   function parseTime(value) {
     return value.replace(/\//g, "-");
+  }
+
+  function isOnOrAfterStartDate(value) {
+    if (!state.startDate) return true;
+    return value.slice(0, 10) >= state.startDate;
   }
 
   function formatTime(value) {
@@ -588,6 +667,7 @@
       fileName: state.fileName,
       realtime: state.realtime,
       statsExpanded: state.statsExpanded,
+      startDate: state.startDate,
       savedAt: Date.now()
     }));
   }
