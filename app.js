@@ -6,7 +6,7 @@
   const DB_NAME = "poe2-map-tracker";
   const STORE_NAME = "settings";
   const REQUIRED_LOG_FILE = "Client.txt";
-  const STATE_VERSION = 10;
+  const STATE_VERSION = 11;
 
   const els = {
     nativePicker: document.getElementById("nativePicker"),
@@ -139,7 +139,7 @@
     const savedLastSize = saved?.lastSize || 0;
     const needsMigrationScan = Boolean(saved && saved.version !== STATE_VERSION);
     if (saved) {
-      state.records = (saved.records || []).map(refreshClassification).filter((record) => !HIDDEN_TYPES.has(record.type));
+      state.records = (saved.records || []).map(refreshClassification).filter((record) => !isHiddenRecord(record));
       state.realtime = saved.realtime !== false;
       state.statsExpanded = Boolean(saved.statsExpanded);
       state.startDate = saved.startDate || "";
@@ -347,7 +347,7 @@
       return;
     }
     closePreviousRun(record);
-    if (HIDDEN_TYPES.has(record.type)) return;
+    if (isHiddenRecord(record)) return;
     state.records.push(record);
   }
 
@@ -407,7 +407,7 @@
   function recalculateRunCounts() {
     const counts = new Map();
     for (const record of state.records) {
-      if (HIDDEN_TYPES.has(record.type)) {
+      if (isHiddenRecord(record)) {
         delete record.runCount;
         continue;
       }
@@ -420,6 +420,14 @@
 
   function locationKey(record) {
     return normalize(record.name || record.code);
+  }
+
+  function isHiddenRecord(record) {
+    return HIDDEN_TYPES.has(record.type) || isExcludedLocation(record);
+  }
+
+  function isExcludedLocation(record) {
+    return locationKey(record) === "well of souls" && Number(record.level) === 22;
   }
 
   function instanceKey(code, seed) {
@@ -534,14 +542,14 @@
     els.citadelCount.textContent = citadels.length;
     els.bossCount.textContent = bosses.length;
     els.deathCount.textContent = totalDeaths(state.records);
-    const lastVisible = state.records.filter((record) => !HIDDEN_TYPES.has(record.type)).at(-1);
+    const lastVisible = state.records.filter((record) => !isHiddenRecord(record)).at(-1);
     els.lastArea.textContent = lastVisible ? lastVisible.name : "-";
   }
 
   function renderLocationStats() {
     const stats = new Map();
     for (const record of state.records) {
-      if (HIDDEN_TYPES.has(record.type)) continue;
+      if (isHiddenRecord(record)) continue;
       const keyName = record.name;
       const key = `${normalize(keyName)}:${record.type}`;
       const current = stats.get(key) || {
@@ -592,7 +600,7 @@
   function renderTable() {
     const query = state.search;
     const allRows = state.records
-      .filter((record) => !HIDDEN_TYPES.has(record.type))
+      .filter((record) => !isHiddenRecord(record))
       .filter((record) => state.activeFilter === "all" || record.type === state.activeFilter)
       .filter((record) => !state.locationFilter || (locationKey(record) === state.locationFilter.key && record.type === state.locationFilter.type))
       .filter((record) => !query || normalizeSearch(`${record.name} ${record.code} ${record.boss}`).includes(query))
