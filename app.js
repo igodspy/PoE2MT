@@ -580,8 +580,10 @@
             <strong>${escapeHtml(item.name)}</strong>
             <span class="type type-${item.type}">${typeLabel(item.type)}</span>
           </div>
-          <b>${item.count}</b>
-          <small>${statDetailLabel(item, averageMs)}</small>
+          <div class="stat-metrics">
+            <b>${item.count}</b>
+            <small>${statDetailLabel(item, averageMs)}</small>
+          </div>
         </article>
       `;
     }).join("");
