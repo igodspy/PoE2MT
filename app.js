@@ -81,7 +81,7 @@
 
   async function chooseNativeFile() {
     if (!window.showOpenFilePicker) {
-      els.watchStatus.textContent = "Откройте в Chrome";
+      els.watchStatus.textContent = "Open in Chrome";
       return;
     }
 
@@ -91,7 +91,7 @@
     });
     const file = await handle.getFile();
     if (file.name !== REQUIRED_LOG_FILE) {
-      els.watchStatus.textContent = "Выберите Client.txt";
+      els.watchStatus.textContent = "Select Client.txt";
       return;
     }
     await saveHandle(handle);
@@ -125,7 +125,7 @@
       }
       if (state.realtime) startPolling();
     } else {
-      els.watchStatus.textContent = "Разрешите доступ к логу";
+      els.watchStatus.textContent = "Allow log access";
     }
   }
 
@@ -135,7 +135,7 @@
     state.fileName = file.name;
     state.lastSize = file.size;
     els.fileName.textContent = file.name;
-    els.watchStatus.textContent = handle && state.realtime ? "Реальное время включено" : "Файл загружен";
+    els.watchStatus.textContent = handle && state.realtime ? "Realtime enabled" : "File loaded";
 
     if (scanNow) {
       await fullScan();
@@ -151,7 +151,7 @@
     const file = await currentFile();
     if (!file) return;
 
-    setProgress(12, "Читаю последние строки");
+    setProgress(12, "Reading recent lines");
     const start = Math.max(0, file.size - TAIL_BYTES);
     const text = await file.slice(start).text();
     const lines = text.split(/\r?\n/).slice(-TAIL_LINES);
@@ -161,7 +161,7 @@
     recalculateDurations();
     recalculateRunCounts();
     state.lastSize = file.size;
-    setProgress(100, `${lines.length} строк`);
+    setProgress(100, `${lines.length} lines`);
     saveLocalState();
     render();
   }
@@ -177,7 +177,7 @@
     let buffer = "";
     let loaded = 0;
     let linesCount = 0;
-    setProgress(0, "Полный анализ");
+    setProgress(0, "Full scan");
 
     while (true) {
       const { value, done } = await reader.read();
@@ -189,14 +189,14 @@
       linesCount += lines.length;
       const parsed = parseLines(lines, { reset: false });
       state.pending = parsed.pending;
-      setProgress(Math.round((loaded / file.size) * 100), `${linesCount.toLocaleString("ru-RU")} строк`);
+      setProgress(Math.round((loaded / file.size) * 100), `${linesCount.toLocaleString("en-US")} lines`);
     }
 
     if (buffer) parseLines([buffer], { reset: false });
     recalculateRunCounts();
     recalculateDurations();
     state.lastSize = file.size;
-    setProgress(100, `${linesCount.toLocaleString("ru-RU")} строк`);
+    setProgress(100, `${linesCount.toLocaleString("en-US")} lines`);
     saveLocalState();
     render();
   }
@@ -212,7 +212,7 @@
     }
 
     if (file.size === state.lastSize) {
-      els.watchStatus.textContent = "Ожидаю новые зоны";
+      els.watchStatus.textContent = "Waiting for new areas";
       return;
     }
 
@@ -222,8 +222,8 @@
     recalculateRunCounts();
     recalculateDurations();
     state.lastSize = file.size;
-    setProgress(100, `+${lines.length} строк`);
-    els.watchStatus.textContent = "Обновлено";
+    setProgress(100, `+${lines.length} lines`);
+    els.watchStatus.textContent = "Updated";
     saveLocalState();
     render();
   }
@@ -351,7 +351,7 @@
     if (state.fileHandle) {
       const permission = await state.fileHandle.requestPermission({ mode: "read" });
       if (permission !== "granted") {
-        els.watchStatus.textContent = "Нет доступа к файлу";
+        els.watchStatus.textContent = "No file access";
         return null;
       }
       state.file = await state.fileHandle.getFile();
@@ -363,7 +363,7 @@
   function startPolling() {
     if (state.pollTimer) clearInterval(state.pollTimer);
     state.pollTimer = setInterval(() => pollFile().catch(() => {
-      els.watchStatus.textContent = "Жду доступ к файлу";
+      els.watchStatus.textContent = "Waiting for file access";
     }), POLL_MS);
   }
 
@@ -380,7 +380,7 @@
       pollFile();
     } else {
       stopPolling();
-      els.watchStatus.textContent = state.fileHandle ? "Реальное время выключено" : "Файл не выбран";
+      els.watchStatus.textContent = state.fileHandle ? "Realtime disabled" : "No file selected";
     }
     saveLocalState();
     renderRealtimeToggle();
@@ -402,13 +402,13 @@
     state.records = [];
     localStorage.removeItem("poe2-map-tracker-state");
     await deleteHandle();
-    setProgress(0, "0 строк");
-    els.watchStatus.textContent = "История очищена";
+    setProgress(0, "0 lines");
+    els.watchStatus.textContent = "History cleared";
     render();
   }
 
   function render() {
-    els.fileName.textContent = state.fileName || "Лог не загружен";
+    els.fileName.textContent = state.fileName || "No log loaded";
     renderRealtimeToggle();
     renderStatsState();
     renderSummary();
@@ -452,7 +452,7 @@
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
 
     if (!rows.length) {
-      els.locationStats.innerHTML = `<p class="empty-stat">Пока нет данных.</p>`;
+      els.locationStats.innerHTML = `<p class="empty-stat">No data yet.</p>`;
       return;
     }
 
@@ -465,7 +465,7 @@
             <span class="type type-${item.type}">${typeLabel(item.type)}</span>
           </div>
           <b>${item.count}</b>
-          <small>${averageMs ? `среднее ${formatDuration(averageMs)}` : "время появится после выхода"}</small>
+          <small>${averageMs ? `avg ${formatDuration(averageMs)}` : "time appears after leaving"}</small>
         </article>
       `;
     }).join("");
@@ -482,7 +482,7 @@
       .slice(0, 250);
 
     if (!rows.length) {
-      els.historyBody.innerHTML = `<tr><td colspan="6" class="empty">Подходящих зон пока нет.</td></tr>`;
+      els.historyBody.innerHTML = `<tr><td colspan="6" class="empty">No matching areas yet.</td></tr>`;
       return;
     }
 
@@ -507,7 +507,7 @@
   }
 
   function renderRealtimeToggle() {
-    els.realtimeToggle.textContent = state.realtime ? "Реальное время: вкл" : "Реальное время: выкл";
+    els.realtimeToggle.textContent = state.realtime ? "Realtime: on" : "Realtime: off";
     els.realtimeToggle.setAttribute("aria-pressed", String(state.realtime));
     els.realtimeToggle.classList.toggle("active-toggle", state.realtime);
   }
@@ -516,18 +516,18 @@
     els.statsBand.classList.toggle("expanded", state.statsExpanded);
     els.statsHeader.setAttribute("aria-expanded", String(state.statsExpanded));
     els.statsHint.textContent = state.statsExpanded
-      ? "Нажмите, чтобы свернуть до 3 рядов"
-      : "Показаны первые 3 ряда. Нажмите, чтобы развернуть";
+      ? "Click to collapse to 3 rows"
+      : "Showing first 3 rows. Click to expand";
   }
 
   function typeLabel(type) {
     return {
-      map: "Карта",
-      hideout: "Хайдаут",
-      boss: "Босс",
-      special: "Особая",
-      town: "Город / UI"
-    }[type] || "Зона";
+      map: "Map",
+      hideout: "Hideout",
+      boss: "Boss",
+      special: "Special",
+      town: "Town / UI"
+    }[type] || "Area";
   }
 
   function normalize(value) {
@@ -552,7 +552,7 @@
 
   function runDurationLabel(record) {
     if (!isTimedRun(record)) return "";
-    return record.durationMs ? formatDuration(record.durationMs) : "идёт сейчас";
+    return record.durationMs ? formatDuration(record.durationMs) : "running";
   }
 
   function formatDuration(ms) {
@@ -560,8 +560,8 @@
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = totalSeconds % 60;
-    if (hours > 0) return `${hours}ч ${String(minutes).padStart(2, "0")}м`;
-    return `${minutes}м ${String(seconds).padStart(2, "0")}с`;
+    if (hours > 0) return `${hours}h ${String(minutes).padStart(2, "0")}m`;
+    return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
   }
 
   function msBetween(start, end) {

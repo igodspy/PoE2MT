@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ru">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -13,82 +13,82 @@
           <p class="eyebrow">Local tracker</p>
           <h1>PoE 2 Map Tracker</h1>
         </div>
-        <div class="status-pill" id="watchStatus">Файл не выбран</div>
+        <div class="status-pill" id="watchStatus">No file selected</div>
       </header>
 
       <section class="control-band">
         <div class="file-panel">
-          <button id="nativePicker" class="primary-button" type="button">Открыть лог Chrome</button>
-          <button id="fullScan" type="button">Полный анализ</button>
-          <button id="realtimeToggle" type="button" aria-pressed="true">Реальное время: вкл</button>
-          <button id="clearData" type="button">Очистить</button>
+          <button id="nativePicker" class="primary-button" type="button">Open Client.txt</button>
+          <button id="fullScan" type="button">Full scan</button>
+          <button id="realtimeToggle" type="button" aria-pressed="true">Realtime: on</button>
+          <button id="clearData" type="button">Clear</button>
         </div>
         <div class="progress-wrap" aria-live="polite">
           <div class="progress-meta">
-            <span id="fileName">Лог не загружен</span>
-            <span id="scanMeta">0 строк</span>
+            <span id="fileName">No log loaded</span>
+            <span id="scanMeta">0 lines</span>
           </div>
           <div class="progress-track"><div id="progressBar"></div></div>
         </div>
       </section>
 
-      <section class="summary-grid" aria-label="Сводка">
+      <section class="summary-grid" aria-label="Summary">
         <article>
-          <span>Карт</span>
+          <span>Maps</span>
           <strong id="mapCount">0</strong>
         </article>
         <article>
-          <span>Уникальных</span>
+          <span>Unique</span>
           <strong id="uniqueCount">0</strong>
         </article>
         <article>
-          <span>Босс / спец.</span>
+          <span>Boss / special</span>
           <strong id="bossCount">0</strong>
         </article>
         <article>
-          <span>Последняя зона</span>
+          <span>Last area</span>
           <strong id="lastArea">-</strong>
         </article>
       </section>
 
       <section class="stats-band" id="statsBand">
         <button class="section-head compact stats-toggle" id="statsHeader" type="button" aria-expanded="false">
-          <h2>Количество по локациям</h2>
-          <span id="statsHint">Показаны первые 3 ряда. Нажмите, чтобы развернуть</span>
+          <h2>Runs by location</h2>
+          <span id="statsHint">Showing first 3 rows. Click to expand</span>
         </button>
         <div class="location-stats" id="locationStats">
-          <p class="empty-stat">Пока нет данных.</p>
+          <p class="empty-stat">No data yet.</p>
         </div>
       </section>
 
       <section class="workspace">
-        <aside class="filters" aria-label="Фильтры">
-          <button class="filter active" data-filter="all" type="button">Все</button>
-          <button class="filter" data-filter="map" type="button">Карты</button>
-          <button class="filter" data-filter="boss" type="button">Боссы</button>
-          <button class="filter" data-filter="special" type="button">Особые</button>
-          <input id="searchBox" type="search" placeholder="Поиск по названию" />
+        <aside class="filters" aria-label="Filters">
+          <button class="filter active" data-filter="all" type="button">All</button>
+          <button class="filter" data-filter="map" type="button">Maps</button>
+          <button class="filter" data-filter="boss" type="button">Bosses</button>
+          <button class="filter" data-filter="special" type="button">Special</button>
+          <input id="searchBox" type="search" placeholder="Search by name" />
         </aside>
 
         <section class="table-area">
           <div class="section-head">
-            <h2>История зон</h2>
-            <span id="sourceNote">Справочник: poe2wiki.net, List of maps</span>
+            <h2>Area history</h2>
+            <span id="sourceNote">Source: poe2wiki.net, List of maps</span>
           </div>
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Время</th>
-                  <th>Название</th>
-                  <th>Тип</th>
-                  <th>Запуск</th>
-                  <th>Прохождение</th>
-                  <th>Уровень</th>
+                  <th>Time</th>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Run</th>
+                  <th>Duration</th>
+                  <th>Level</th>
                 </tr>
               </thead>
               <tbody id="historyBody">
-                <tr><td colspan="6" class="empty">Выберите лог файл, чтобы начать анализ.</td></tr>
+                <tr><td colspan="6" class="empty">Open Client.txt to start analysis.</td></tr>
               </tbody>
             </table>
           </div>
