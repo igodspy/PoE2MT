@@ -266,6 +266,16 @@ button:hover {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px 12px;
   align-items: start;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+}
+
+.stat-row:hover,
+.stat-row:focus-visible {
+  background: var(--panel-2);
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
 }
 
 .stat-row strong,

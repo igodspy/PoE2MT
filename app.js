@@ -57,6 +57,7 @@
     records: [],
     activeFilter: "all",
     search: "",
+    locationFilter: null,
     visibleRows: HISTORY_PAGE_SIZE,
     startDate: "",
     realtime: true,
@@ -83,7 +84,19 @@
       if (state.file || state.fileHandle) fullScan();
     });
     els.statsHeader.addEventListener("click", toggleStats);
+    els.locationStats.addEventListener("click", (event) => {
+      const row = event.target.closest(".stat-row");
+      if (row) applyLocationFilter(row.dataset.locationName, row.dataset.locationType);
+    });
+    els.locationStats.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      const row = event.target.closest(".stat-row");
+      if (!row) return;
+      event.preventDefault();
+      applyLocationFilter(row.dataset.locationName, row.dataset.locationType);
+    });
     els.searchBox.addEventListener("input", (event) => {
+      state.locationFilter = null;
       state.search = normalizeSearch(event.target.value);
       resetVisibleRows();
       renderTable();
@@ -92,7 +105,7 @@
     els.filters.forEach((button) => {
       button.addEventListener("click", () => {
         state.activeFilter = button.dataset.filter;
-        els.filters.forEach((item) => item.classList.toggle("active", item === button));
+        syncFilterButtons();
         resetVisibleRows();
         renderTable();
       });
@@ -558,7 +571,7 @@
     els.locationStats.innerHTML = rows.map((item) => {
       const averageMs = item.timedCount ? item.totalMs / item.timedCount : 0;
       return `
-        <article class="stat-row">
+        <article class="stat-row" role="button" tabindex="0" data-location-name="${escapeHtml(item.name)}" data-location-type="${escapeHtml(item.type)}">
           <div>
             <strong>${escapeHtml(item.name)}</strong>
             <span class="type type-${item.type}">${typeLabel(item.type)}</span>
@@ -575,6 +588,7 @@
     const allRows = state.records
       .filter((record) => !HIDDEN_TYPES.has(record.type))
       .filter((record) => state.activeFilter === "all" || record.type === state.activeFilter)
+      .filter((record) => !state.locationFilter || (locationKey(record) === state.locationFilter.key && record.type === state.locationFilter.type))
       .filter((record) => !query || normalizeSearch(`${record.name} ${record.code} ${record.boss}`).includes(query))
       .slice()
       .reverse();
@@ -613,6 +627,21 @@
   function resetVisibleRows() {
     state.visibleRows = HISTORY_PAGE_SIZE;
     if (els.tableWrap) els.tableWrap.scrollTop = 0;
+  }
+
+  function applyLocationFilter(name, type) {
+    if (!name || !type) return;
+    state.locationFilter = { key: normalize(name), type };
+    state.search = normalizeSearch(name);
+    state.activeFilter = type;
+    els.searchBox.value = name;
+    syncFilterButtons();
+    resetVisibleRows();
+    renderTable();
+  }
+
+  function syncFilterButtons() {
+    els.filters.forEach((item) => item.classList.toggle("active", item.dataset.filter === state.activeFilter));
   }
 
   function loadMoreRow(visibleCount, totalCount) {
@@ -724,8 +753,7 @@
   function deathCell(record) {
     const deaths = deathCount(record);
     if (!deaths) return "";
-    const lastDeath = record.deaths[record.deaths.length - 1];
-    return `<strong class="death-count">${deaths}</strong><small>${escapeHtml(formatClock(lastDeath))}</small>`;
+    return `<strong class="death-count">${deaths}</strong>`;
   }
 
   function deathCount(record) {
@@ -741,11 +769,6 @@
     if (averageMs) parts.push(`avg ${formatDuration(averageMs)}`);
     if (item.deaths) parts.push(`${item.deaths} death${item.deaths === 1 ? "" : "s"}`);
     return parts.join(" / ") || "time appears after leaving";
-  }
-
-  function formatClock(value) {
-    if (!value) return "";
-    return value.slice(11, 16);
   }
 
   function formatDuration(ms) {
