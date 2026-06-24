@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PoE 2 Map Tracker</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Local tracker</p>
+          <h1>PoE 2 Map Tracker</h1>
+        </div>
+        <div class="status-pill" id="watchStatus">Файл не выбран</div>
+      </header>
+
+      <section class="control-band">
+        <div class="file-panel">
+          <button id="nativePicker" class="primary-button" type="button">Открыть лог Chrome</button>
+          <button id="fullScan" type="button">Полный анализ</button>
+          <button id="realtimeToggle" type="button" aria-pressed="true">Реальное время: вкл</button>
+          <button id="clearData" type="button">Очистить</button>
+        </div>
+        <div class="progress-wrap" aria-live="polite">
+          <div class="progress-meta">
+            <span id="fileName">Лог не загружен</span>
+            <span id="scanMeta">0 строк</span>
+          </div>
+          <div class="progress-track"><div id="progressBar"></div></div>
+        </div>
+      </section>
+
+      <section class="summary-grid" aria-label="Сводка">
+        <article>
+          <span>Карт</span>
+          <strong id="mapCount">0</strong>
+        </article>
+        <article>
+          <span>Уникальных</span>
+          <strong id="uniqueCount">0</strong>
+        </article>
+        <article>
+          <span>Босс / спец.</span>
+          <strong id="bossCount">0</strong>
+        </article>
+        <article>
+          <span>Последняя зона</span>
+          <strong id="lastArea">-</strong>
+        </article>
+      </section>
+
+      <section class="stats-band" id="statsBand">
+        <button class="section-head compact stats-toggle" id="statsHeader" type="button" aria-expanded="false">
+          <h2>Количество по локациям</h2>
+          <span id="statsHint">Показаны первые 3 ряда. Нажмите, чтобы развернуть</span>
+        </button>
+        <div class="location-stats" id="locationStats">
+          <p class="empty-stat">Пока нет данных.</p>
+        </div>
+      </section>
+
+      <section class="workspace">
+        <aside class="filters" aria-label="Фильтры">
+          <button class="filter active" data-filter="all" type="button">Все</button>
+          <button class="filter" data-filter="map" type="button">Карты</button>
+          <button class="filter" data-filter="boss" type="button">Боссы</button>
+          <button class="filter" data-filter="special" type="button">Особые</button>
+          <input id="searchBox" type="search" placeholder="Поиск по названию" />
+        </aside>
+
+        <section class="table-area">
+          <div class="section-head">
+            <h2>История зон</h2>
+            <span id="sourceNote">Справочник: poe2wiki.net, List of maps</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Время</th>
+                  <th>Название</th>
+                  <th>Тип</th>
+                  <th>Запуск</th>
+                  <th>Прохождение</th>
+                  <th>Уровень</th>
+                </tr>
+              </thead>
+              <tbody id="historyBody">
+                <tr><td colspan="6" class="empty">Выберите лог файл, чтобы начать анализ.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script src="./locations.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
