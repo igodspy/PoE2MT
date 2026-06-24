@@ -194,7 +194,7 @@ button:hover {
 
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 14px;
   margin: 16px 0;
 }
@@ -368,7 +368,7 @@ button:hover {
 table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 760px;
+  min-width: 860px;
 }
 
 th,
@@ -400,6 +400,10 @@ td small {
   color: var(--muted);
 }
 
+.death-count {
+  color: var(--danger);
+}
+
 .type {
   display: inline-flex;
   min-width: 82px;
@@ -413,6 +417,14 @@ td small {
 
 .type-map {
   background: var(--ok);
+}
+
+.type-anomaly {
+  background: #b99cff;
+}
+
+.type-citadel {
+  background: #8fb6ff;
 }
 
 .type-expedition {

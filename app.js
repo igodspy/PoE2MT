@@ -5,7 +5,7 @@
   const DB_NAME = "poe2-map-tracker";
   const STORE_NAME = "settings";
   const REQUIRED_LOG_FILE = "Client.txt";
-  const STATE_VERSION = 6;
+  const STATE_VERSION = 8;
 
   const els = {
     nativePicker: document.getElementById("nativePicker"),
@@ -20,7 +20,10 @@
     progressBar: document.getElementById("progressBar"),
     mapCount: document.getElementById("mapCount"),
     uniqueCount: document.getElementById("uniqueCount"),
+    anomalyCount: document.getElementById("anomalyCount"),
+    citadelCount: document.getElementById("citadelCount"),
     bossCount: document.getElementById("bossCount"),
+    deathCount: document.getElementById("deathCount"),
     lastArea: document.getElementById("lastArea"),
     statsBand: document.getElementById("statsBand"),
     statsHeader: document.getElementById("statsHeader"),
@@ -271,6 +274,13 @@
         continue;
       }
 
+      const death = line.match(/^(\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}).*\[INFO Client \d+]\s+: .+ has been slain\.$/);
+      if (death) {
+        if (!isOnOrAfterStartDate(parseTime(death[1]))) continue;
+        recordDeath(parseTime(death[1]));
+        continue;
+      }
+
       const scene = line.match(/^(\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}).*\[SCENE\] Set Source \[(.+)]/);
       if (scene) {
         if (!isOnOrAfterStartDate(parseTime(scene[1]))) continue;
@@ -305,14 +315,41 @@
   function pushRecord(raw) {
     const meta = classify(raw.name, raw.code);
     const record = { ...raw, ...meta };
+    record.deaths = Array.isArray(record.deaths) ? record.deaths : [];
     record.instanceKey = record.instanceKey || instanceKey(record.code, record.seed);
     const last = state.records[state.records.length - 1];
-    if (last && last.instanceKey && last.instanceKey === record.instanceKey) return;
+    if (last && last.instanceKey && last.instanceKey === record.instanceKey) {
+      mergeDeaths(last, record.deaths);
+      return;
+    }
     closePreviousRun(record);
     if (HIDDEN_TYPES.has(record.type)) return;
     record.runCount = countLocationRuns(locationKey(record)) + 1;
     state.records.push(record);
     if (state.records.length > 5000) state.records = state.records.slice(-5000);
+  }
+
+  function recordDeath(time) {
+    const record = state.pending || lastTimedRecord();
+    if (!record) return;
+    record.deaths = Array.isArray(record.deaths) ? record.deaths : [];
+    if (record.deaths.includes(time)) return;
+    record.deaths.push(time);
+  }
+
+  function mergeDeaths(record, deaths) {
+    if (!Array.isArray(deaths) || !deaths.length) return;
+    record.deaths = Array.isArray(record.deaths) ? record.deaths : [];
+    for (const death of deaths) {
+      if (!record.deaths.includes(death)) record.deaths.push(death);
+    }
+  }
+
+  function lastTimedRecord() {
+    for (let index = state.records.length - 1; index >= 0; index -= 1) {
+      if (isTimedRun(state.records[index])) return state.records[index];
+    }
+    return null;
   }
 
   function closePreviousRun(nextRecord) {
@@ -368,7 +405,7 @@
   }
 
   function isTimedRun(record) {
-    return record.type === "map" || record.type === "expedition" || record.type === "boss" || record.type === "special";
+    return record.type === "map" || record.type === "anomaly" || record.type === "citadel" || record.type === "expedition" || record.type === "boss" || record.type === "special";
   }
 
   function classify(name, code) {
@@ -387,7 +424,7 @@
 
   function refreshClassification(record) {
     const meta = classify(record.name, record.code);
-    return { ...record, ...meta, instanceKey: record.instanceKey || instanceKey(record.code, record.seed) };
+    return { ...record, ...meta, deaths: Array.isArray(record.deaths) ? record.deaths : [], instanceKey: record.instanceKey || instanceKey(record.code, record.seed) };
   }
 
   async function currentFile() {
@@ -465,10 +502,15 @@
 
   function renderSummary() {
     const maps = state.records.filter((record) => record.type === "map");
+    const anomalies = state.records.filter((record) => record.type === "anomaly");
+    const citadels = state.records.filter((record) => record.type === "citadel");
     const bosses = state.records.filter((record) => record.type === "boss" || record.type === "special");
     els.mapCount.textContent = maps.length;
     els.uniqueCount.textContent = new Set(maps.map((record) => record.name)).size;
+    els.anomalyCount.textContent = anomalies.length;
+    els.citadelCount.textContent = citadels.length;
     els.bossCount.textContent = bosses.length;
+    els.deathCount.textContent = totalDeaths(state.records);
     const lastVisible = state.records.filter((record) => !HIDDEN_TYPES.has(record.type)).at(-1);
     els.lastArea.textContent = lastVisible ? lastVisible.name : "-";
   }
@@ -483,11 +525,13 @@
         name: keyName,
         type: record.type,
         count: 0,
+        deaths: 0,
         totalMs: 0,
         timedCount: 0,
         lastTime: ""
       };
       current.count += 1;
+      current.deaths += deathCount(record);
       current.lastTime = record.time;
       if (isTimedRun(record) && record.durationMs) {
         current.totalMs += record.durationMs;
@@ -513,7 +557,7 @@
             <span class="type type-${item.type}">${typeLabel(item.type)}</span>
           </div>
           <b>${item.count}</b>
-          <small>${averageMs ? `avg ${formatDuration(averageMs)}` : "time appears after leaving"}</small>
+          <small>${statDetailLabel(item, averageMs)}</small>
         </article>
       `;
     }).join("");
@@ -530,7 +574,7 @@
       .slice(0, 250);
 
     if (!rows.length) {
-      els.historyBody.innerHTML = `<tr><td colspan="6" class="empty">No matching areas yet.</td></tr>`;
+      els.historyBody.innerHTML = `<tr><td colspan="7" class="empty">No matching areas yet.</td></tr>`;
       return;
     }
 
@@ -544,6 +588,7 @@
         <td><span class="type type-${record.type}">${typeLabel(record.type)}</span></td>
         <td>${escapeHtml(String(record.runCount || ""))}</td>
         <td>${escapeHtml(runDurationLabel(record))}</td>
+        <td>${deathCell(record)}</td>
         <td>${escapeHtml(String(record.level || ""))}</td>
       </tr>
     `).join("");
@@ -571,6 +616,8 @@
   function typeLabel(type) {
     return {
       map: "Map",
+      anomaly: "Anomaly",
+      citadel: "Citadel",
       expedition: "Expedition",
       hideout: "Hideout",
       boss: "Boss",
@@ -646,6 +693,33 @@
   function runDurationLabel(record) {
     if (!isTimedRun(record)) return "";
     return record.durationMs ? formatDuration(record.durationMs) : "running";
+  }
+
+  function deathCell(record) {
+    const deaths = deathCount(record);
+    if (!deaths) return "";
+    const lastDeath = record.deaths[record.deaths.length - 1];
+    return `<strong class="death-count">${deaths}</strong><small>${escapeHtml(formatClock(lastDeath))}</small>`;
+  }
+
+  function deathCount(record) {
+    return Array.isArray(record.deaths) ? record.deaths.length : 0;
+  }
+
+  function totalDeaths(records) {
+    return records.reduce((total, record) => total + deathCount(record), 0);
+  }
+
+  function statDetailLabel(item, averageMs) {
+    const parts = [];
+    if (averageMs) parts.push(`avg ${formatDuration(averageMs)}`);
+    if (item.deaths) parts.push(`${item.deaths} death${item.deaths === 1 ? "" : "s"}`);
+    return parts.join(" / ") || "time appears after leaving";
+  }
+
+  function formatClock(value) {
+    if (!value) return "";
+    return value.slice(11, 16);
   }
 
   function formatDuration(ms) {

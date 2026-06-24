@@ -47,8 +47,20 @@
           <strong id="uniqueCount">0</strong>
         </article>
         <article>
+          <span>Anomalies</span>
+          <strong id="anomalyCount">0</strong>
+        </article>
+        <article>
+          <span>Citadels</span>
+          <strong id="citadelCount">0</strong>
+        </article>
+        <article>
           <span>Boss / special</span>
           <strong id="bossCount">0</strong>
+        </article>
+        <article>
+          <span>Deaths</span>
+          <strong id="deathCount">0</strong>
         </article>
         <article>
           <span>Last area</span>
@@ -70,6 +82,8 @@
         <aside class="filters" aria-label="Filters">
           <button class="filter active" data-filter="all" type="button">All</button>
           <button class="filter" data-filter="map" type="button">Maps</button>
+          <button class="filter" data-filter="anomaly" type="button">Anomaly</button>
+          <button class="filter" data-filter="citadel" type="button">Citadels</button>
           <button class="filter" data-filter="expedition" type="button">Expedition</button>
           <button class="filter" data-filter="boss" type="button">Bosses</button>
           <button class="filter" data-filter="special" type="button">Special</button>
@@ -79,7 +93,7 @@
         <section class="table-area">
           <div class="section-head">
             <h2>Area history</h2>
-            <span id="sourceNote">Source: poe2wiki.net, List of maps</span>
+            <span id="sourceNote">Source: poe2wiki.net, poe2db.tw, Client.txt</span>
           </div>
           <div class="table-wrap">
             <table>
@@ -90,11 +104,12 @@
                   <th>Type</th>
                   <th>Run</th>
                   <th>Duration</th>
+                  <th>Deaths</th>
                   <th>Level</th>
                 </tr>
               </thead>
               <tbody id="historyBody">
-                <tr><td colspan="6" class="empty">Open Client.txt to start analysis.</td></tr>
+                <tr><td colspan="7" class="empty">Open Client.txt to start analysis.</td></tr>
               </tbody>
             </table>
           </div>
