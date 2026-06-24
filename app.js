@@ -5,6 +5,7 @@
   const DB_NAME = "poe2-map-tracker";
   const STORE_NAME = "settings";
   const REQUIRED_LOG_FILE = "Client.txt";
+  const STATE_VERSION = 2;
 
   const els = {
     nativePicker: document.getElementById("nativePicker"),
@@ -110,6 +111,7 @@
   async function restoreSavedState() {
     const saved = readLocalState();
     const savedLastSize = saved?.lastSize || 0;
+    const needsMigrationScan = Boolean(saved && saved.version !== STATE_VERSION);
     if (saved) {
       state.records = (saved.records || []).map(refreshClassification).filter((record) => !HIDDEN_TYPES.has(record.type));
       state.realtime = saved.realtime !== false;
@@ -130,7 +132,9 @@
     if (permission === "granted") {
       const file = await handle.getFile();
       await loadFile(file, handle, false);
-      if (savedLastSize > 0 && file.size > savedLastSize) {
+      if (needsMigrationScan) {
+        await fullScan();
+      } else if (savedLastSize > 0 && file.size > savedLastSize) {
         state.lastSize = savedLastSize;
         await pollFile();
       }
@@ -256,6 +260,7 @@
         finalizePending();
         state.pending = {
           id: `${generated[3]}:${generated[4]}:${generated[1]}`,
+          instanceKey: instanceKey(generated[3], generated[4]),
           time: parseTime(generated[1]),
           level: Number(generated[2]),
           code: generated[3],
@@ -299,8 +304,9 @@
   function pushRecord(raw) {
     const meta = classify(raw.name, raw.code);
     const record = { ...raw, ...meta };
+    record.instanceKey = record.instanceKey || instanceKey(record.code, record.seed);
     const last = state.records[state.records.length - 1];
-    if (last && last.code === record.code && last.seed === record.seed && last.name === record.name) return;
+    if (last && last.instanceKey && last.instanceKey === record.instanceKey) return;
     closePreviousRun(record);
     if (HIDDEN_TYPES.has(record.type)) return;
     record.runCount = countLocationRuns(locationKey(record)) + 1;
@@ -311,9 +317,12 @@
   function closePreviousRun(nextRecord) {
     const previous = state.records[state.records.length - 1];
     if (!previous || !isTimedRun(previous)) return;
-    if (previous.durationMs) return;
+    if (previous.endTime) return;
     const durationMs = msBetween(previous.time, nextRecord.time);
-    if (durationMs > 0) previous.durationMs = durationMs;
+    if (durationMs > 0) {
+      previous.endTime = nextRecord.time;
+      previous.durationMs = durationMs;
+    }
   }
 
   function recalculateDurations() {
@@ -324,8 +333,14 @@
     for (let index = 0; index < state.records.length - 1; index += 1) {
       const record = state.records[index];
       if (!isTimedRun(record)) continue;
-      const durationMs = msBetween(record.time, state.records[index + 1].time);
+      const durationMs = msBetween(record.time, record.endTime || state.records[index + 1].time);
       if (durationMs > 0) record.durationMs = durationMs;
+    }
+
+    const last = state.records[state.records.length - 1];
+    if (last?.endTime && isTimedRun(last)) {
+      const durationMs = msBetween(last.time, last.endTime);
+      if (durationMs > 0) last.durationMs = durationMs;
     }
   }
 
@@ -345,6 +360,10 @@
 
   function locationKey(record) {
     return normalize(record.name || record.code);
+  }
+
+  function instanceKey(code, seed) {
+    return code && seed ? `${code}:${seed}` : "";
   }
 
   function isTimedRun(record) {
@@ -367,7 +386,7 @@
 
   function refreshClassification(record) {
     const meta = classify(record.name, record.code);
-    return { ...record, ...meta };
+    return { ...record, ...meta, instanceKey: record.instanceKey || instanceKey(record.code, record.seed) };
   }
 
   async function currentFile() {
@@ -654,6 +673,7 @@
 
   function saveLocalState() {
     localStorage.setItem("poe2-map-tracker-state", JSON.stringify({
+      version: STATE_VERSION,
       records: state.records,
       lastSize: state.lastSize,
       fileName: state.fileName,
