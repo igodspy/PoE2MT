@@ -407,6 +407,10 @@ td small {
   background: var(--ok);
 }
 
+.type-expedition {
+  background: #c7a07a;
+}
+
 .type-hideout,
 .type-town {
   background: var(--accent-2);

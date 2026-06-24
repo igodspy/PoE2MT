@@ -5,7 +5,7 @@
   const DB_NAME = "poe2-map-tracker";
   const STORE_NAME = "settings";
   const REQUIRED_LOG_FILE = "Client.txt";
-  const STATE_VERSION = 2;
+  const STATE_VERSION = 6;
 
   const els = {
     nativePicker: document.getElementById("nativePicker"),
@@ -367,7 +367,7 @@
   }
 
   function isTimedRun(record) {
-    return record.type === "map" || record.type === "boss" || record.type === "special";
+    return record.type === "map" || record.type === "expedition" || record.type === "boss" || record.type === "special";
   }
 
   function classify(name, code) {
@@ -569,6 +569,7 @@
   function typeLabel(type) {
     return {
       map: "Map",
+      expedition: "Expedition",
       hideout: "Hideout",
       boss: "Boss",
       special: "Special",
