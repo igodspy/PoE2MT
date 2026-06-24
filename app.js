@@ -344,7 +344,7 @@
   }
 
   function locationKey(record) {
-    return normalize(record.inferredName || record.name || record.code);
+    return normalize(record.name || record.code);
   }
 
   function isTimedRun(record) {
@@ -356,13 +356,13 @@
     if (found) return { type: found.type, biome: found.biome, boss: found.boss, known: true };
 
     const codeMatch = matchByCode(code);
-    if (codeMatch) return { type: codeMatch.type, biome: codeMatch.biome, boss: codeMatch.boss, known: true, inferredName: codeMatch.name };
+    if (codeMatch) return { type: codeMatch.type, biome: codeMatch.biome, boss: codeMatch.boss, known: true };
 
     const hint = matchHint(name, code);
-    if (hint) return { type: hint[1], biome: "", boss: "", known: false, inferredName: inferNameFromCode(code) };
+    if (hint) return { type: hint[1], biome: "", boss: "", known: false };
     if (name === "Atlas") return { type: "town", biome: "", boss: "", known: true };
     if (/town|encampment|caravan|ziggurat/i.test(name)) return { type: "town", biome: "", boss: "", known: false };
-    return { type: "map", biome: "", boss: "", known: false, inferredName: inferNameFromCode(code) };
+    return { type: "map", biome: "", boss: "", known: false };
   }
 
   function refreshClassification(record) {
@@ -456,7 +456,7 @@
     const stats = new Map();
     for (const record of state.records) {
       if (HIDDEN_TYPES.has(record.type)) continue;
-      const keyName = record.inferredName || record.name;
+      const keyName = record.name;
       const key = `${normalize(keyName)}:${record.type}`;
       const current = stats.get(key) || {
         name: keyName,
@@ -503,7 +503,7 @@
     const rows = state.records
       .filter((record) => !HIDDEN_TYPES.has(record.type))
       .filter((record) => state.activeFilter === "all" || record.type === state.activeFilter)
-      .filter((record) => !query || normalizeSearch(`${record.name} ${record.inferredName || ""} ${record.code} ${record.boss}`).includes(query))
+      .filter((record) => !query || normalizeSearch(`${record.name} ${record.code} ${record.boss}`).includes(query))
       .slice()
       .reverse()
       .slice(0, 250);
@@ -518,7 +518,6 @@
         <td>${escapeHtml(formatTime(record.time))}</td>
         <td>
           <strong>${escapeHtml(record.name)}</strong>
-          ${record.inferredName && normalize(record.inferredName) !== normalize(record.name) ? `<small>inferred: ${escapeHtml(record.inferredName)}</small>` : ""}
           ${record.boss ? `<small>${escapeHtml(record.boss)}</small>` : ""}
         </td>
         <td><span class="type type-${record.type}">${typeLabel(record.type)}</span></td>
@@ -607,13 +606,6 @@
       .replace(/_/g, " ")
       .replace(/([a-z])([A-Z])/g, "$1 $2")
       .trim() || "Unknown";
-  }
-
-  function inferNameFromCode(code) {
-    if (!code) return "";
-    const matched = matchByCode(code);
-    if (matched) return matched.name;
-    return humanizeCode(code);
   }
 
   function parseTime(value) {
