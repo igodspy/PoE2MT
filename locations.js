@@ -132,7 +132,7 @@ window.POE2_LOCATION_DATA = {
     ["Simulacrum of Delusion", "special", "Delirium", "Delirium encounter"],
     ["Vastiri Racecourse Hideout", "hideout", "", ""],
     ["Atziri's Temple", "boss", "Vaal", "Atziri, Queen of the Vaal"],
-    ["Caer Tarth", "boss", "Expedition", "Olroth, Origin of the Fall"],
+    ["Caer Tarth", "boss", "Ritual", "The Bodach"],
     ["Sealed Vault", "anomaly", "Anomaly", "Ytzara, Blood Oracle / Maztli, Flesh-Shaper"],
     ["Twisted Domain", "boss", "Breach", "Xesht, We That Are One"],
     ["The Crux of Nothingness", "boss", "Breach", "Xesht, We That Are One"],
