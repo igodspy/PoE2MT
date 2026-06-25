@@ -341,11 +341,24 @@ button:hover {
   padding: 16px;
 }
 
+.summary-head,
+.death-head {
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
 .summary-grid span {
   display: block;
   color: var(--muted);
   font-size: 13px;
-  margin-bottom: 10px;
+  margin-bottom: 0;
+}
+
+.death-head {
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .summary-grid strong {
@@ -353,6 +366,27 @@ button:hover {
   font-size: 28px;
   min-height: 34px;
   overflow-wrap: anywhere;
+}
+
+.death-character {
+  min-height: 28px;
+  width: min(118px, 58%);
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+}
+
+.death-character input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
 }
 
 .stats-band {

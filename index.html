@@ -66,31 +66,36 @@
 
       <section class="summary-grid" id="summaryGrid" aria-label="Summary" hidden>
         <article>
-          <span>Maps</span>
+          <div class="summary-head"><span>Maps</span></div>
           <strong id="mapCount">0</strong>
         </article>
         <article>
-          <span>Anomalies</span>
+          <div class="summary-head"><span>Anomalies</span></div>
           <strong id="anomalyCount">0</strong>
         </article>
         <article>
-          <span>Citadels</span>
+          <div class="summary-head"><span>Citadels</span></div>
           <strong id="citadelCount">0</strong>
         </article>
         <article>
-          <span>Expeditions</span>
+          <div class="summary-head"><span>Expeditions</span></div>
           <strong id="expeditionCount">0</strong>
         </article>
         <article>
-          <span>Boss / special</span>
+          <div class="summary-head"><span>Boss / special</span></div>
           <strong id="bossCount">0</strong>
         </article>
         <article>
-          <span>Deaths</span>
+          <div class="death-head">
+            <span>Deaths</span>
+            <label class="death-character">
+              <input id="characterName" type="text" autocomplete="off" spellcheck="false" placeholder="Character" />
+            </label>
+          </div>
           <strong id="deathCount">0</strong>
         </article>
         <article style="grid-column: span 2;">
-          <span>Last area</span>
+          <div class="summary-head"><span>Last area</span></div>
           <strong id="lastArea">-</strong>
         </article>
       </section>
@@ -145,6 +150,6 @@
     </main>
 
     <script src="./locations.js?v=20260624-11"></script>
-    <script src="./app.js?v=20260625-4"></script>
+    <script src="./app.js?v=20260625-12"></script>
   </body>
 </html>
