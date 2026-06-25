@@ -46,6 +46,8 @@
             <input id="startDate" type="date" />
           </label>
           <button id="nativePicker" class="primary-button" type="button">Open Client.txt</button>
+          <button id="fallbackButton" type="button" hidden>Open once</button>
+          <input id="fallbackPicker" type="file" accept=".txt,.log,text/plain" hidden />
           <button id="fullScan" class="after-load" type="button" hidden>Refresh</button>
           <button id="clearData" class="after-load" type="button" hidden>Clear</button>
           <button id="realtimeToggle" class="after-load" type="button" aria-pressed="true" hidden>Realtime: on</button>          
@@ -136,6 +138,6 @@
     </main>
 
     <script src="./locations.js?v=20260624-11"></script>
-    <script src="./app.js?v=20260624-11"></script>
+    <script src="./app.js?v=20260625-1"></script>
   </body>
 </html>

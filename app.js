@@ -12,6 +12,8 @@
 
   const els = {
     nativePicker: document.getElementById("nativePicker"),
+    fallbackButton: document.getElementById("fallbackButton"),
+    fallbackPicker: document.getElementById("fallbackPicker"),
     fullScan: document.getElementById("fullScan"),
     realtimeToggle: document.getElementById("realtimeToggle"),
     clearData: document.getElementById("clearData"),
@@ -81,6 +83,8 @@
 
   function wireEvents() {
     els.nativePicker.addEventListener("click", chooseNativeFile);
+    els.fallbackButton.addEventListener("click", openFallbackPicker);
+    els.fallbackPicker.addEventListener("change", chooseFallbackFile);
     els.fullScan.addEventListener("click", () => fullScan());
     els.realtimeToggle.addEventListener("click", toggleRealtime);
     els.clearData.addEventListener("click", clearData);
@@ -132,21 +136,45 @@
 
   async function chooseNativeFile() {
     if (!window.showOpenFilePicker) {
-      els.watchStatus.textContent = "Open in Chrome";
+      openFallbackPicker();
       return;
     }
 
-    const [handle] = await window.showOpenFilePicker({
-      multiple: false,
-      types: [{ description: "PoE Client log", accept: { "text/plain": [".txt", ".log"] } }]
-    });
-    const file = await handle.getFile();
-    if (file.name !== REQUIRED_LOG_FILE) {
+    try {
+      const [handle] = await window.showOpenFilePicker({
+        multiple: false,
+        types: [{ description: "PoE Client log", accept: { "text/plain": [".txt", ".log"] } }]
+      });
+      const file = await handle.getFile();
+      if (!isClientLog(file)) {
+        els.watchStatus.textContent = "Select Client.txt";
+        return;
+      }
+      await saveHandle(handle);
+      await loadFile(file, handle, true);
+    } catch (error) {
+      if (isPickerCancel(error)) return;
+      openFallbackPicker();
+    }
+  }
+
+  async function chooseFallbackFile(event) {
+    const [file] = Array.from(event.target.files || []);
+    event.target.value = "";
+    if (!file) return;
+    if (!isClientLog(file)) {
       els.watchStatus.textContent = "Select Client.txt";
       return;
     }
-    await saveHandle(handle);
-    await loadFile(file, handle, true);
+    await deleteHandle();
+    await loadFile(file, null, true);
+    els.watchStatus.textContent = "File loaded";
+  }
+
+  function openFallbackPicker() {
+    els.watchStatus.textContent = "Choose Client.txt";
+    els.fallbackButton.hidden = false;
+    els.fallbackPicker.click();
   }
 
   async function restoreSavedState() {
@@ -171,26 +199,37 @@
     state.fileHandle = handle;
     const permission = await handle.queryPermission({ mode: "read" });
     if (permission === "granted") {
-      const file = await handle.getFile();
-      await loadFile(file, handle, false);
-      if (needsMigrationScan) {
-        await fullScan();
-      } else if (savedLastSize > 0 && file.size > savedLastSize) {
-        state.lastSize = savedLastSize;
-        await pollFile();
+      try {
+        const file = await handle.getFile();
+        await loadFile(file, handle, false);
+        if (needsMigrationScan) {
+          await fullScan();
+        } else if (savedLastSize > 0 && file.size > savedLastSize) {
+          state.lastSize = savedLastSize;
+          await pollFile();
+        }
+        if (state.realtime) startPolling();
+      } catch {
+        state.fileHandle = null;
+        await deleteHandle();
+        els.watchStatus.textContent = "Open Client.txt again";
       }
-      if (state.realtime) startPolling();
     } else {
       els.watchStatus.textContent = "Allow log access";
     }
   }
 
   async function loadFile(file, handle, scanNow) {
+    if (!handle) {
+      stopPolling();
+      state.realtime = false;
+    }
     state.file = file;
     state.fileHandle = handle;
     state.fileName = file.name;
     state.lastSize = file.size;
     els.fileName.textContent = file.name;
+    els.fallbackButton.hidden = true;
     els.watchStatus.textContent = handle && state.realtime ? "Realtime enabled" : "File loaded";
 
     if (scanNow) {
@@ -740,9 +779,25 @@
   }
 
   function renderRealtimeToggle() {
+    if (!state.fileHandle) {
+      els.realtimeToggle.textContent = "Realtime unavailable";
+      els.realtimeToggle.setAttribute("aria-pressed", "false");
+      els.realtimeToggle.classList.remove("active-toggle");
+      els.realtimeToggle.disabled = true;
+      return;
+    }
+    els.realtimeToggle.disabled = false;
     els.realtimeToggle.textContent = state.realtime ? "Realtime: on" : "Realtime: off";
     els.realtimeToggle.setAttribute("aria-pressed", String(state.realtime));
     els.realtimeToggle.classList.toggle("active-toggle", state.realtime);
+  }
+
+  function isClientLog(file) {
+    return file && file.name === REQUIRED_LOG_FILE;
+  }
+
+  function isPickerCancel(error) {
+    return error && error.name === "AbortError";
   }
 
   function renderStatsState() {
