@@ -7,7 +7,7 @@
   const DB_NAME = "poe2-map-tracker";
   const STORE_NAME = "settings";
   const REQUIRED_LOG_FILE = "Client.txt";
-  const STATE_VERSION = 11;
+  const STATE_VERSION = 12;
   const DEFAULT_START_DATE = "2026-05-29";
 
   const els = {
@@ -21,6 +21,7 @@
     controlBand: document.querySelector(".control-band"),
     dateField: document.querySelector(".date-field"),
     startDate: document.getElementById("startDate"),
+    characterName: document.getElementById("characterName"),
     watchStatus: document.getElementById("watchStatus"),
     setupGuide: document.getElementById("setupGuide"),
     fileName: document.getElementById("fileName"),
@@ -65,11 +66,13 @@
     lastSize: 0,
     pending: null,
     records: [],
+    deaths: [],
     activeFilter: "all",
     search: "",
     locationFilter: null,
     visibleRows: HISTORY_PAGE_SIZE,
     startDate: DEFAULT_START_DATE,
+    characterName: "",
     realtime: true,
     statsExpanded: false,
     pollTimer: null,
@@ -94,6 +97,12 @@
     els.dateField.addEventListener("click", openDatePicker);
     els.startDate.addEventListener("change", () => {
       state.startDate = els.startDate.value;
+      saveLocalState();
+      if (state.file || state.fileHandle) fullScan();
+    });
+    els.characterName.addEventListener("change", () => {
+      state.characterName = normalizeCharacterName(els.characterName.value);
+      els.characterName.value = state.characterName;
       saveLocalState();
       if (state.file || state.fileHandle) fullScan();
     });
@@ -185,9 +194,11 @@
     const needsMigrationScan = Boolean(saved && saved.version !== STATE_VERSION);
     if (saved) {
       state.records = (saved.records || []).map(refreshClassification).filter((record) => !isHiddenRecord(record));
+      state.deaths = Array.isArray(saved.deaths) ? saved.deaths : collectRecordDeaths(state.records);
       state.realtime = saved.realtime !== false;
       state.statsExpanded = Boolean(saved.statsExpanded);
       state.startDate = saved.startDate || DEFAULT_START_DATE;
+      state.characterName = normalizeCharacterName(saved.characterName);
       state.records = state.records.filter((record) => isOnOrAfterStartDate(record.time));
       recalculateRunCounts();
       recalculateDurations();
@@ -256,6 +267,7 @@
     const text = await file.slice(start).text();
     if (isStale(generation)) return;
     const lines = text.split(/\r?\n/).slice(-TAIL_LINES);
+    state.deaths = [];
     const parsed = parseLines(lines, { reset: true });
     state.records = parsed.records;
     state.pending = parsed.pending;
@@ -273,6 +285,7 @@
     const previous = {
       records: state.records,
       pending: state.pending,
+      deaths: state.deaths,
       lastSize: state.lastSize
     };
 
@@ -282,6 +295,7 @@
 
       state.records = [];
       state.pending = null;
+      state.deaths = [];
       const scanStart = await findScanStartOffset(file);
       if (isStale(generation)) return;
       const scanSize = Math.max(1, file.size - scanStart);
@@ -319,6 +333,7 @@
       if (isStale(generation)) return;
       state.records = previous.records;
       state.pending = previous.pending;
+      state.deaths = previous.deaths;
       state.lastSize = previous.lastSize;
       setProgress(0, "Refresh failed");
       els.watchStatus.textContent = "Scan failed";
@@ -385,6 +400,7 @@
     if (options.reset) {
       state.records = [];
       state.pending = null;
+      state.deaths = [];
     }
 
     for (const line of lines) {
@@ -408,9 +424,11 @@
         continue;
       }
 
-      const death = line.match(/^(\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}).*\[INFO Client \d+]\s+: .+ has been slain\.$/);
+      const death = line.match(/^(\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}).*\[INFO Client \d+]\s+: (.+) has been slain\.$/);
       if (death) {
         if (!isOnOrAfterStartDate(parseTime(death[1]))) continue;
+        if (!isCharacterDeath(death[2])) continue;
+        recordGlobalDeath(parseTime(death[1]));
         recordDeath(parseTime(death[1]));
         continue;
       }
@@ -467,6 +485,11 @@
     record.deaths = Array.isArray(record.deaths) ? record.deaths : [];
     if (record.deaths.includes(time)) return;
     record.deaths.push(time);
+  }
+
+  function recordGlobalDeath(time) {
+    if (state.deaths.includes(time)) return;
+    state.deaths.push(time);
   }
 
   function mergeDeaths(record, deaths) {
@@ -621,9 +644,12 @@
     state.lastSize = 0;
     state.pending = null;
     state.records = [];
+    state.deaths = [];
     resetVisibleRows();
     state.startDate = DEFAULT_START_DATE;
+    state.characterName = "";
     els.startDate.value = DEFAULT_START_DATE;
+    els.characterName.value = "";
     localStorage.removeItem("poe2-map-tracker-state");
     await deleteHandle();
     setProgress(0, "0 lines");
@@ -649,6 +675,9 @@
     els.nativePicker.hidden = hasLog;
     els.fallbackControl.hidden = hasLog;
     els.startDate.value = state.startDate;
+    if (document.activeElement !== els.characterName) {
+      els.characterName.value = state.characterName;
+    }
     renderRealtimeToggle();
     renderStatsState();
     renderSummary();
@@ -667,7 +696,7 @@
     els.citadelCount.textContent = citadels.length;
     els.expeditionCount.textContent = expeditions.length;
     els.bossCount.textContent = bosses.length;
-    els.deathCount.textContent = totalDeaths(state.records);
+    els.deathCount.textContent = state.deaths.length;
     const lastVisible = state.records.filter((record) => !isHiddenRecord(record)).at(-1);
     els.lastArea.textContent = lastVisible ? lastVisible.name : "-";
   }
@@ -866,6 +895,15 @@
     return String(value || "").toLocaleLowerCase().replace(/\s+/g, " ").trim();
   }
 
+  function normalizeCharacterName(value) {
+    return String(value || "").trim();
+  }
+
+  function isCharacterDeath(name) {
+    if (!state.characterName) return true;
+    return normalizeCharacterName(name).toLocaleLowerCase() === state.characterName.toLocaleLowerCase();
+  }
+
   function normalizeCodeName(value) {
     return String(value || "")
       .replace(/^Map/i, "")
@@ -946,6 +984,10 @@
     return records.reduce((total, record) => total + deathCount(record), 0);
   }
 
+  function collectRecordDeaths(records) {
+    return Array.from(new Set(records.flatMap((record) => Array.isArray(record.deaths) ? record.deaths : [])));
+  }
+
   function statDetailLabel(item, averageMs) {
     const parts = [];
     if (averageMs) parts.push(`avg ${formatDuration(averageMs)}`);
@@ -983,11 +1025,13 @@
     localStorage.setItem("poe2-map-tracker-state", JSON.stringify({
       version: STATE_VERSION,
       records: state.records,
+      deaths: state.deaths,
       lastSize: state.lastSize,
       fileName: state.fileName,
       realtime: state.realtime,
       statsExpanded: state.statsExpanded,
       startDate: state.startDate,
+      characterName: state.characterName,
       savedAt: Date.now()
     }));
   }
