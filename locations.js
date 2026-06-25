@@ -142,6 +142,7 @@ window.POE2_LOCATION_DATA = {
     ["The Withered Hollow", "boss", "Delirium", "The Simulacrum bosses"],
     ["Ruins of Kingsmarch", "boss", "Expedition", "The Aberration"],
     ["Verisium Crater", "boss", "Expedition", "The Aberration"],
+    ["The Withered Willow", "boss", "Delirium", "Tangmazu, The Raven Trickster"],
     ["Atlas", "town", "", "Atlas UI"]
   ],
   internalHints: [
