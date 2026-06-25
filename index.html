@@ -30,7 +30,7 @@
           </li>
           <li>
             <strong>Open Client.txt</strong>
-            <span>Usually it is in Path of Exile 2\logs\Client.txt.</span>
+            <span>Use Open Client.txt first for realtime updates. <br/> If Windows blocks the log as a system file, use Open once instead.</span>
           </li>
           <li>
             <strong>Keep this page open</strong>
@@ -46,7 +46,10 @@
             <input id="startDate" type="date" />
           </label>
           <button id="nativePicker" class="primary-button" type="button">Open Client.txt</button>
-          <button id="fallbackButton" type="button">Open once</button>
+          <span class="fallback-control" id="fallbackControl">
+            <button id="fallbackButton" type="button">Open once</button>
+            <small>In case of error</small>
+          </span>
           <input id="fallbackPicker" type="file" accept=".txt,.log,text/plain" hidden />
           <button id="fullScan" class="after-load" type="button" hidden>Refresh</button>
           <button id="clearData" class="after-load" type="button" hidden>Clear</button>

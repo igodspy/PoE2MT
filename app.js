@@ -12,6 +12,7 @@
 
   const els = {
     nativePicker: document.getElementById("nativePicker"),
+    fallbackControl: document.getElementById("fallbackControl"),
     fallbackButton: document.getElementById("fallbackButton"),
     fallbackPicker: document.getElementById("fallbackPicker"),
     fullScan: document.getElementById("fullScan"),
@@ -611,6 +612,7 @@
     els.afterLoad.forEach((item) => {
       item.hidden = !hasLog;
     });
+    els.fallbackControl.hidden = hasLog;
     els.startDate.value = state.startDate;
     renderRealtimeToggle();
     renderStatsState();

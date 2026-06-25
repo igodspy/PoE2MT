@@ -211,7 +211,7 @@ button {
   grid-template-columns: 1fr;
   max-width: 760px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 20px 20px 34px;
 }
 
 .control-band.setup-mode .file-panel {
@@ -228,6 +228,23 @@ button {
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
+}
+
+.fallback-control {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.fallback-control small {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 button {
