@@ -71,7 +71,8 @@
     startDate: DEFAULT_START_DATE,
     realtime: true,
     statsExpanded: false,
-    pollTimer: null
+    pollTimer: null,
+    generation: 0
   };
 
   init();
@@ -220,6 +221,8 @@
   }
 
   async function loadFile(file, handle, scanNow) {
+    state.generation += 1;
+    const generation = state.generation;
     if (!handle) {
       stopPolling();
       state.realtime = false;
@@ -237,17 +240,20 @@
       saveLocalState();
     }
 
+    if (isStale(generation)) return;
     if (handle && state.realtime) startPolling();
     render();
   }
 
   async function rescanTail() {
+    const generation = state.generation;
     const file = await currentFile();
-    if (!file) return;
+    if (!file || isStale(generation)) return;
 
     setProgress(12, "Reading recent lines");
     const start = Math.max(0, file.size - TAIL_BYTES);
     const text = await file.slice(start).text();
+    if (isStale(generation)) return;
     const lines = text.split(/\r?\n/).slice(-TAIL_LINES);
     const parsed = parseLines(lines, { reset: true });
     state.records = parsed.records;
@@ -262,12 +268,14 @@
   }
 
   async function fullScan() {
+    const generation = state.generation;
     const file = await currentFile();
-    if (!file) return;
+    if (!file || isStale(generation)) return;
 
     state.records = [];
     state.pending = null;
     const scanStart = await findScanStartOffset(file);
+    if (isStale(generation)) return;
     const scanSize = Math.max(1, file.size - scanStart);
     const reader = file.slice(scanStart).stream().getReader();
     const decoder = new TextDecoder("utf-8");
@@ -278,6 +286,7 @@
 
     while (true) {
       const { value, done } = await reader.read();
+      if (isStale(generation)) return;
       if (done) break;
       scanned += value.byteLength;
       buffer += decoder.decode(value, { stream: true });
@@ -290,6 +299,7 @@
     }
 
     if (buffer) parseLines([buffer], { reset: false });
+    if (isStale(generation)) return;
     recalculateRunCounts();
     recalculateDurations();
     state.lastSize = file.size;
@@ -327,8 +337,9 @@
 
   async function pollFile() {
     if (!state.realtime) return;
+    const generation = state.generation;
     const file = await currentFile();
-    if (!file) return;
+    if (!file || isStale(generation)) return;
 
     if (file.size < state.lastSize) {
       await rescanTail();
@@ -341,6 +352,7 @@
     }
 
     const text = await file.slice(state.lastSize).text();
+    if (isStale(generation)) return;
     const lines = text.split(/\r?\n/);
     parseLines(lines, { reset: false });
     recalculateRunCounts();
@@ -584,6 +596,7 @@
   }
 
   async function clearData() {
+    state.generation += 1;
     stopPolling();
     state.fileHandle = null;
     state.file = null;
@@ -599,6 +612,10 @@
     setProgress(0, "0 lines");
     els.watchStatus.textContent = "History cleared";
     render();
+  }
+
+  function isStale(generation) {
+    return generation !== state.generation;
   }
 
   function render() {
@@ -976,6 +993,8 @@
     const database = await db();
     const tx = database.transaction(STORE_NAME, "readwrite");
     tx.objectStore(STORE_NAME).put(handle, "fileHandle");
+    await completeTransaction(tx);
+    database.close();
   }
 
   async function readHandle() {
@@ -983,8 +1002,14 @@
     return new Promise((resolve) => {
       const tx = database.transaction(STORE_NAME, "readonly");
       const request = tx.objectStore(STORE_NAME).get("fileHandle");
-      request.onsuccess = () => resolve(request.result || null);
-      request.onerror = () => resolve(null);
+      request.onsuccess = () => {
+        database.close();
+        resolve(request.result || null);
+      };
+      request.onerror = () => {
+        database.close();
+        resolve(null);
+      };
     });
   }
 
@@ -992,9 +1017,27 @@
     const database = await db();
     return new Promise((resolve) => {
       const tx = database.transaction(STORE_NAME, "readwrite");
-      const request = tx.objectStore(STORE_NAME).delete("fileHandle");
-      request.onsuccess = () => resolve();
-      request.onerror = () => resolve();
+      tx.objectStore(STORE_NAME).clear();
+      tx.oncomplete = () => {
+        database.close();
+        resolve();
+      };
+      tx.onerror = () => {
+        database.close();
+        resolve();
+      };
+      tx.onabort = () => {
+        database.close();
+        resolve();
+      };
+    });
+  }
+
+  function completeTransaction(tx) {
+    return new Promise((resolve, reject) => {
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
     });
   }
 })();
