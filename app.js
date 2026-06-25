@@ -20,7 +20,6 @@
     scanMeta: document.getElementById("scanMeta"),
     progressBar: document.getElementById("progressBar"),
     mapCount: document.getElementById("mapCount"),
-    uniqueCount: document.getElementById("uniqueCount"),
     anomalyCount: document.getElementById("anomalyCount"),
     citadelCount: document.getElementById("citadelCount"),
     bossCount: document.getElementById("bossCount"),
@@ -537,7 +536,6 @@
     const citadels = state.records.filter((record) => record.type === "citadel");
     const bosses = state.records.filter((record) => record.type === "boss" || record.type === "special");
     els.mapCount.textContent = maps.length;
-    els.uniqueCount.textContent = new Set(maps.map((record) => record.name)).size;
     els.anomalyCount.textContent = anomalies.length;
     els.citadelCount.textContent = citadels.length;
     els.bossCount.textContent = bosses.length;
