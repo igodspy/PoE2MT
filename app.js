@@ -173,7 +173,6 @@
 
   function openFallbackPicker() {
     els.watchStatus.textContent = "Choose Client.txt";
-    els.fallbackButton.hidden = false;
     els.fallbackPicker.click();
   }
 
@@ -229,7 +228,6 @@
     state.fileName = file.name;
     state.lastSize = file.size;
     els.fileName.textContent = file.name;
-    els.fallbackButton.hidden = true;
     els.watchStatus.textContent = handle && state.realtime ? "Realtime enabled" : "File loaded";
 
     if (scanNow) {
