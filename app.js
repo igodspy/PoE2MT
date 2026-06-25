@@ -1,21 +1,25 @@
 (function () {
   const TAIL_LINES = 3000;
   const TAIL_BYTES = 1600 * 1024;
+  const REVERSE_SCAN_CHUNK_BYTES = 1024 * 1024;
   const POLL_MS = 3000;
   const HISTORY_PAGE_SIZE = 250;
   const DB_NAME = "poe2-map-tracker";
   const STORE_NAME = "settings";
   const REQUIRED_LOG_FILE = "Client.txt";
   const STATE_VERSION = 11;
+  const DEFAULT_START_DATE = "2026-05-29";
 
   const els = {
     nativePicker: document.getElementById("nativePicker"),
     fullScan: document.getElementById("fullScan"),
     realtimeToggle: document.getElementById("realtimeToggle"),
     clearData: document.getElementById("clearData"),
+    controlBand: document.querySelector(".control-band"),
+    dateField: document.querySelector(".date-field"),
     startDate: document.getElementById("startDate"),
     watchStatus: document.getElementById("watchStatus"),
-    logHint: document.getElementById("logHint"),
+    setupGuide: document.getElementById("setupGuide"),
     fileName: document.getElementById("fileName"),
     scanMeta: document.getElementById("scanMeta"),
     progressBar: document.getElementById("progressBar"),
@@ -25,13 +29,16 @@
     bossCount: document.getElementById("bossCount"),
     deathCount: document.getElementById("deathCount"),
     lastArea: document.getElementById("lastArea"),
+    summaryGrid: document.getElementById("summaryGrid"),
     statsBand: document.getElementById("statsBand"),
     statsHeader: document.getElementById("statsHeader"),
     statsHint: document.getElementById("statsHint"),
     locationStats: document.getElementById("locationStats"),
     tableWrap: document.getElementById("tableWrap"),
+    workspace: document.getElementById("workspace"),
     historyBody: document.getElementById("historyBody"),
     searchBox: document.getElementById("searchBox"),
+    afterLoad: Array.from(document.querySelectorAll(".after-load")),
     filters: Array.from(document.querySelectorAll(".filter"))
   };
 
@@ -58,7 +65,7 @@
     search: "",
     locationFilter: null,
     visibleRows: HISTORY_PAGE_SIZE,
-    startDate: "",
+    startDate: DEFAULT_START_DATE,
     realtime: true,
     statsExpanded: false,
     pollTimer: null
@@ -77,6 +84,7 @@
     els.fullScan.addEventListener("click", () => fullScan());
     els.realtimeToggle.addEventListener("click", toggleRealtime);
     els.clearData.addEventListener("click", clearData);
+    els.dateField.addEventListener("click", openDatePicker);
     els.startDate.addEventListener("change", () => {
       state.startDate = els.startDate.value;
       saveLocalState();
@@ -114,6 +122,14 @@
     });
   }
 
+  function openDatePicker(event) {
+    if (event.target === els.startDate) return;
+    els.startDate.focus();
+    if (typeof els.startDate.showPicker === "function") {
+      els.startDate.showPicker();
+    }
+  }
+
   async function chooseNativeFile() {
     if (!window.showOpenFilePicker) {
       els.watchStatus.textContent = "Open in Chrome";
@@ -141,7 +157,7 @@
       state.records = (saved.records || []).map(refreshClassification).filter((record) => !isHiddenRecord(record));
       state.realtime = saved.realtime !== false;
       state.statsExpanded = Boolean(saved.statsExpanded);
-      state.startDate = saved.startDate || "";
+      state.startDate = saved.startDate || DEFAULT_START_DATE;
       state.records = state.records.filter((record) => isOnOrAfterStartDate(record.time));
       recalculateRunCounts();
       recalculateDurations();
@@ -213,24 +229,26 @@
 
     state.records = [];
     state.pending = null;
-    const reader = file.stream().getReader();
+    const scanStart = await findScanStartOffset(file);
+    const scanSize = Math.max(1, file.size - scanStart);
+    const reader = file.slice(scanStart).stream().getReader();
     const decoder = new TextDecoder("utf-8");
     let buffer = "";
-    let loaded = 0;
+    let scanned = 0;
     let linesCount = 0;
-    setProgress(0, "Full scan");
+    setProgress(0, scanStart ? "Scanning from selected date" : "Full scan");
 
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;
-      loaded += value.byteLength;
+      scanned += value.byteLength;
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split(/\r?\n/);
       buffer = lines.pop() || "";
       linesCount += lines.length;
       const parsed = parseLines(lines, { reset: false });
       state.pending = parsed.pending;
-      setProgress(Math.round((loaded / file.size) * 100), `${linesCount.toLocaleString("en-US")} lines`);
+      setProgress(Math.round((scanned / scanSize) * 100), `${linesCount.toLocaleString("en-US")} lines`);
     }
 
     if (buffer) parseLines([buffer], { reset: false });
@@ -241,6 +259,32 @@
     setProgress(100, `${linesCount.toLocaleString("en-US")} lines`);
     saveLocalState();
     render();
+  }
+
+  async function findScanStartOffset(file) {
+    if (!state.startDate) return 0;
+
+    let end = file.size;
+    let carry = "";
+    setProgress(0, "Finding start date");
+
+    while (end > 0) {
+      const start = Math.max(0, end - REVERSE_SCAN_CHUNK_BYTES);
+      const text = await file.slice(start, end).text();
+      const combined = text + carry;
+      const lines = combined.split(/\r?\n/);
+      carry = lines.shift() || "";
+
+      for (let index = lines.length - 1; index >= 0; index -= 1) {
+        const date = lineDate(lines[index]);
+        if (date && date < state.startDate) return start;
+      }
+
+      end = start;
+      setProgress(Math.round(((file.size - end) / file.size) * 100), "Finding start date");
+    }
+
+    return 0;
   }
 
   async function pollFile() {
@@ -510,8 +554,8 @@
     state.pending = null;
     state.records = [];
     resetVisibleRows();
-    state.startDate = "";
-    els.startDate.value = "";
+    state.startDate = DEFAULT_START_DATE;
+    els.startDate.value = DEFAULT_START_DATE;
     localStorage.removeItem("poe2-map-tracker-state");
     await deleteHandle();
     setProgress(0, "0 lines");
@@ -520,8 +564,16 @@
   }
 
   function render() {
+    const hasLog = Boolean(state.fileName || state.file || state.fileHandle);
     els.fileName.textContent = state.fileName || "No log loaded";
-    els.logHint.hidden = Boolean(state.fileName || state.file || state.fileHandle);
+    els.setupGuide.hidden = hasLog;
+    els.summaryGrid.hidden = !hasLog;
+    els.statsBand.hidden = !hasLog;
+    els.workspace.hidden = !hasLog;
+    els.controlBand.classList.toggle("setup-mode", !hasLog);
+    els.afterLoad.forEach((item) => {
+      item.hidden = !hasLog;
+    });
     els.startDate.value = state.startDate;
     renderRealtimeToggle();
     renderStatsState();
@@ -767,6 +819,11 @@
 
   function parseTime(value) {
     return value.replace(/\//g, "-");
+  }
+
+  function lineDate(line) {
+    const match = String(line || "").match(/^(\d{4})\/(\d{2})\/(\d{2})/);
+    return match ? `${match[1]}-${match[2]}-${match[3]}` : "";
   }
 
   function isOnOrAfterStartDate(value) {

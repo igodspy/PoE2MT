@@ -24,6 +24,10 @@ body {
   font-family: Inter, "Segoe UI", Arial, sans-serif;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 button,
 input {
   font: inherit;
@@ -61,14 +65,6 @@ h1 {
   font-size: clamp(28px, 5vw, 48px);
 }
 
-.log-hint {
-  max-width: 760px;
-  margin: 10px 0 0;
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.45;
-}
-
 h2 {
   font-size: 18px;
 }
@@ -89,6 +85,7 @@ button {
 }
 
 .control-band,
+.setup-guide,
 .workspace,
 .stats-band,
 .summary-grid article {
@@ -97,11 +94,133 @@ button {
   border-radius: 8px;
 }
 
+.setup-guide {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+  gap: 28px;
+  margin-bottom: 16px;
+  padding: 28px;
+  position: relative;
+  overflow: hidden;
+}
+
+.setup-guide[hidden] {
+  display: none;
+}
+
+.setup-guide::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-top: 3px solid var(--accent);
+  pointer-events: none;
+}
+
+.setup-copy {
+  position: relative;
+  z-index: 1;
+}
+
+.setup-kicker {
+  margin: 0 0 10px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.setup-guide h2 {
+  max-width: 720px;
+  font-size: clamp(24px, 4vw, 38px);
+  line-height: 1.08;
+}
+
+.setup-guide p {
+  max-width: 780px;
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.setup-steps {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 14px;
+}
+
+.setup-steps li {
+  position: relative;
+  min-height: 34px;
+  padding-left: 46px;
+  min-width: 0;
+}
+
+.setup-steps li::before {
+  counter-increment: setup-step;
+  content: counter(setup-step);
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: #171309;
+  font-weight: 800;
+}
+
+.setup-steps {
+  counter-reset: setup-step;
+}
+
+.setup-steps strong,
+.setup-steps span {
+  display: block;
+}
+
+.setup-steps strong {
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.setup-steps span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
 .control-band {
   display: grid;
   grid-template-columns: minmax(280px, 640px) 1fr;
   gap: 18px;
   padding: 18px;
+}
+
+.control-band.setup-mode {
+  grid-template-columns: 1fr;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.control-band.setup-mode .file-panel {
+  justify-content: center;
+}
+
+.control-band.setup-mode .date-field,
+.control-band.setup-mode .primary-button {
+  min-height: 48px;
 }
 
 .file-panel {
@@ -146,6 +265,7 @@ button:hover {
   border-radius: 8px;
   background: var(--panel-2);
   color: var(--muted);
+  cursor: pointer;
 }
 
 .date-field span {
@@ -160,6 +280,7 @@ button:hover {
   background: transparent;
   color: var(--text);
   color-scheme: dark;
+  cursor: pointer;
 }
 
 .progress-wrap {
@@ -484,6 +605,7 @@ td small {
   }
 
   .topbar,
+  .setup-guide,
   .control-band,
   .workspace {
     grid-template-columns: 1fr;
