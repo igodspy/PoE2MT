@@ -29,6 +29,7 @@
     mapCount: document.getElementById("mapCount"),
     anomalyCount: document.getElementById("anomalyCount"),
     citadelCount: document.getElementById("citadelCount"),
+    expeditionCount: document.getElementById("expeditionCount"),
     bossCount: document.getElementById("bossCount"),
     deathCount: document.getElementById("deathCount"),
     lastArea: document.getElementById("lastArea"),
@@ -659,10 +660,12 @@
     const maps = state.records.filter((record) => record.type === "map");
     const anomalies = state.records.filter((record) => record.type === "anomaly");
     const citadels = state.records.filter((record) => record.type === "citadel");
+    const expeditions = state.records.filter((record) => record.type === "expedition");
     const bosses = state.records.filter((record) => record.type === "boss" || record.type === "special");
     els.mapCount.textContent = maps.length;
     els.anomalyCount.textContent = anomalies.length;
     els.citadelCount.textContent = citadels.length;
+    els.expeditionCount.textContent = expeditions.length;
     els.bossCount.textContent = bosses.length;
     els.deathCount.textContent = totalDeaths(state.records);
     const lastVisible = state.records.filter((record) => !isHiddenRecord(record)).at(-1);
