@@ -269,44 +269,60 @@
 
   async function fullScan() {
     const generation = state.generation;
-    const file = await currentFile();
-    if (!file || isStale(generation)) return;
+    const previous = {
+      records: state.records,
+      pending: state.pending,
+      lastSize: state.lastSize
+    };
 
-    state.records = [];
-    state.pending = null;
-    const scanStart = await findScanStartOffset(file);
-    if (isStale(generation)) return;
-    const scanSize = Math.max(1, file.size - scanStart);
-    const reader = file.slice(scanStart).stream().getReader();
-    const decoder = new TextDecoder("utf-8");
-    let buffer = "";
-    let scanned = 0;
-    let linesCount = 0;
-    setProgress(0, scanStart ? "Scanning from selected date" : "Full scan");
+    try {
+      const file = await currentFile();
+      if (!file || isStale(generation)) return;
 
-    while (true) {
-      const { value, done } = await reader.read();
+      state.records = [];
+      state.pending = null;
+      const scanStart = await findScanStartOffset(file);
       if (isStale(generation)) return;
-      if (done) break;
-      scanned += value.byteLength;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split(/\r?\n/);
-      buffer = lines.pop() || "";
-      linesCount += lines.length;
-      const parsed = parseLines(lines, { reset: false });
-      state.pending = parsed.pending;
-      setProgress(Math.round((scanned / scanSize) * 100), `${linesCount.toLocaleString("en-US")} lines`);
-    }
+      const scanSize = Math.max(1, file.size - scanStart);
+      const reader = file.slice(scanStart).stream().getReader();
+      const decoder = new TextDecoder("utf-8");
+      let buffer = "";
+      let scanned = 0;
+      let linesCount = 0;
+      setProgress(0, scanStart ? "Scanning from selected date" : "Full scan");
 
-    if (buffer) parseLines([buffer], { reset: false });
-    if (isStale(generation)) return;
-    recalculateRunCounts();
-    recalculateDurations();
-    state.lastSize = file.size;
-    resetVisibleRows();
-    setProgress(100, `${linesCount.toLocaleString("en-US")} lines`);
-    saveLocalState();
-    render();
+      while (true) {
+        const { value, done } = await reader.read();
+        if (isStale(generation)) return;
+        if (done) break;
+        scanned += value.byteLength;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split(/\r?\n/);
+        buffer = lines.pop() || "";
+        linesCount += lines.length;
+        const parsed = parseLines(lines, { reset: false });
+        state.pending = parsed.pending;
+        setProgress(Math.round((scanned / scanSize) * 100), `${linesCount.toLocaleString("en-US")} lines`);
+      }
+
+      if (buffer) parseLines([buffer], { reset: false });
+      if (isStale(generation)) return;
+      recalculateRunCounts();
+      recalculateDurations();
+      state.lastSize = file.size;
+      resetVisibleRows();
+      setProgress(100, `${linesCount.toLocaleString("en-US")} lines`);
+      saveLocalState();
+      render();
+    } catch {
+      if (isStale(generation)) return;
+      state.records = previous.records;
+      state.pending = previous.pending;
+      state.lastSize = previous.lastSize;
+      setProgress(0, "Refresh failed");
+      els.watchStatus.textContent = "Scan failed";
+      render();
+    }
   }
 
   async function findScanStartOffset(file) {
@@ -629,6 +645,7 @@
     els.afterLoad.forEach((item) => {
       item.hidden = !hasLog;
     });
+    els.nativePicker.hidden = hasLog;
     els.fallbackControl.hidden = hasLog;
     els.startDate.value = state.startDate;
     renderRealtimeToggle();
