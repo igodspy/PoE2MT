@@ -870,8 +870,8 @@
     els.statsBand.classList.toggle("expanded", state.statsExpanded);
     els.statsHeader.setAttribute("aria-expanded", String(state.statsExpanded));
     els.statsHint.textContent = state.statsExpanded
-      ? "Click to collapse to 3 rows"
-      : "Showing first 3 rows. Click to expand";
+      ? "Click to collapse to 2 rows"
+      : "Showing first 2 rows. Click to expand";
   }
 
   function typeLabel(type) {
